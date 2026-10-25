@@ -4,7 +4,7 @@ import type { Role } from "./constants";
 // Token de sesión firmado que se guarda en una cookie.
 // Este archivo no usa la base de datos para poder usarse también en el middleware.
 
-export const SESSION_COOKIE = "kanu_session";
+export const SESSION_COOKIE = "ako_session";
 export const SESSION_DAYS = 30;
 
 export type SessionPayload = { userId: string; role: Role; name: string };

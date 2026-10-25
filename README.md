@@ -1,6 +1,8 @@
-# 🐾 Kanu
+# 🐾 Ako
 
-**Tu entrenador canino de bolsillo.**
+**Enseñar y aprender, juntos.**
+
+*Ako* es una palabra maorí (Nueva Zelanda) que significa a la vez «enseñar» y «aprender»: quien enseña también aprende. Así trabajamos adiestrador, familia y perro.
 
 Web (pensada para el móvil) para adiestradores caninos y sus clientes.
 

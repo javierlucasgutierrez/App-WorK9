@@ -2,7 +2,7 @@ import type { Metadata, Viewport } from "next";
 import "./globals.css";
 
 export const metadata: Metadata = {
-  title: "Kanu · Tu entrenador canino de bolsillo",
+  title: "Ako · Enseñar y aprender, juntos",
   description: "Deberes, sesiones y evolución de cada perro, para adiestradores y familias.",
 };
 
