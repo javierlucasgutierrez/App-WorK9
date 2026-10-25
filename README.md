@@ -1,8 +1,8 @@
-# 🐾 Ako
+# 🐾 K9 Club
 
-**Enseñar y aprender, juntos.**
+**Conecta, aprende y comparte con la comunidad canina.**
 
-*Ako* es una palabra maorí (Nueva Zelanda) que significa a la vez «enseñar» y «aprender»: quien enseña también aprende. Así trabajamos adiestrador, familia y perro.
+El punto de encuentro del mundo del perro: los adiestradores conectan con sus clientes y les ayudan a mejorar, y (próximamente) todos pueden encontrar y compartir material nuevo y de segunda mano.
 
 Web (pensada para el móvil) para adiestradores caninos y sus clientes.
 

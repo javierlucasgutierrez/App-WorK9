@@ -2,7 +2,7 @@ import type { Metadata, Viewport } from "next";
 import "./globals.css";
 
 export const metadata: Metadata = {
-  title: "Ako · Enseñar y aprender, juntos",
+  title: "K9 Club · Conecta, aprende y comparte",
   description: "Deberes, sesiones y evolución de cada perro, para adiestradores y familias.",
 };
 

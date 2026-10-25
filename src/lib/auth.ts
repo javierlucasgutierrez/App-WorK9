@@ -58,7 +58,7 @@ export async function generateInviteCode(name: string) {
       .replace(/[̀-ͯ]/g, "")
       .replace(/[^a-zA-Z]/g, "")
       .slice(0, 6)
-      .toUpperCase() || "AKO";
+      .toUpperCase() || "K9CLUB";
   for (;;) {
     const code = `${base}-${Math.floor(1000 + Math.random() * 9000)}`;
     if (!(await db.user.findUnique({ where: { inviteCode: code } }))) return code;
