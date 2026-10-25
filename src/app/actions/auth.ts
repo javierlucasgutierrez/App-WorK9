@@ -13,7 +13,7 @@ import {
 } from "@/lib/auth";
 import type { FormState } from "@/components/ActionForm";
 
-const text = (form: FormData, key: string) => String(form.get(key) ?? "").trim();
+import { text } from "@/lib/forms";
 
 export async function login(_: FormState, form: FormData): Promise<FormState> {
   const email = text(form, "email").toLowerCase();
