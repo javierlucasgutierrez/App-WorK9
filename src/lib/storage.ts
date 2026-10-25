@@ -24,6 +24,18 @@ export interface Storage {
 
 export const ALLOWED_VIDEO_TYPES = ["video/mp4", "video/webm", "video/quicktime"];
 export const MAX_VIDEO_MB = 200;
+export const ALLOWED_IMAGE_TYPES = ["image/jpeg", "image/png", "image/webp"];
+export const MAX_IMAGE_MB = 10;
+
+// Extensión según el tipo real del archivo (no según el nombre que traiga).
+const EXTENSIONS: Record<string, string> = {
+  "video/mp4": ".mp4",
+  "video/webm": ".webm",
+  "video/quicktime": ".mov",
+  "image/jpeg": ".jpg",
+  "image/png": ".png",
+  "image/webp": ".webp",
+};
 
 class LocalStorage implements Storage {
   constructor(private root: string) {}
@@ -35,7 +47,7 @@ class LocalStorage implements Storage {
   }
 
   async save(file: File, folder: string) {
-    const ext = path.extname(file.name).toLowerCase().replace(/[^.a-z0-9]/g, "") || ".mp4";
+    const ext = EXTENSIONS[file.type] ?? (path.extname(file.name).toLowerCase().replace(/[^.a-z0-9]/g, "") || ".bin");
     const key = `${folder}/${randomUUID()}${ext}`;
     const full = this.resolve(key);
     await mkdir(path.dirname(full), { recursive: true });
@@ -78,5 +90,14 @@ export async function saveVideoFromForm(form: FormData, field: string, folder: s
   if (!(file instanceof File) || file.size === 0) return null;
   if (!ALLOWED_VIDEO_TYPES.includes(file.type)) throw new Error("El vídeo debe ser MP4, WebM o MOV.");
   if (file.size > MAX_VIDEO_MB * 1024 * 1024) throw new Error(`El vídeo no puede pasar de ${MAX_VIDEO_MB} MB.`);
+  return storage.save(file, folder);
+}
+
+/** Igual que saveVideoFromForm, para fotos. */
+export async function saveImageFromForm(form: FormData, field: string, folder: string) {
+  const file = form.get(field);
+  if (!(file instanceof File) || file.size === 0) return null;
+  if (!ALLOWED_IMAGE_TYPES.includes(file.type)) throw new Error("La foto debe ser JPG, PNG o WebP.");
+  if (file.size > MAX_IMAGE_MB * 1024 * 1024) throw new Error(`La foto no puede pasar de ${MAX_IMAGE_MB} MB.`);
   return storage.save(file, folder);
 }

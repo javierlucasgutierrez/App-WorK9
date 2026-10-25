@@ -2,12 +2,13 @@
 
 **Conecta, aprende y comparte con la comunidad canina.**
 
-El punto de encuentro del mundo del perro: los adiestradores conectan con sus clientes y les ayudan a mejorar, y (próximamente) todos pueden encontrar y compartir material nuevo y de segunda mano.
+El punto de encuentro del mundo del perro: los adiestradores conectan con sus clientes y les ayudan a mejorar, y todos pueden encontrar y compartir material nuevo y de segunda mano.
 
 Web (pensada para el móvil) para adiestradores caninos y sus clientes.
 
 - **Adiestrador/a:** clientes y fichas de perros, biblioteca de ejercicios con vídeo, deberes, sesiones de entrenamiento y evolución de cada perro.
 - **Cliente / familia:** deberes, vídeos y explicaciones, registro de prácticas en casa y contenido formativo.
+- **Todos los socios:** sección *Material* para publicar y encontrar material nuevo o de segunda mano (con foto, precio o "lo regalo"), botón «Me interesa» y recomendaciones del adiestrador.
 
 Funciona 100 % en local, sin cuentas ni servicios externos.
 
@@ -48,18 +49,20 @@ Para ver la base de datos como una hoja de cálculo: `npm run db:studio`.
 - *Inicio:* resumen, tu código de invitación y las últimas prácticas que han apuntado las familias.
 - *Clientes:* da de alta clientes y perros. Desde la ficha de un perro puedes mandar deberes, registrar una sesión (**+ Sesión**) y ver su **evolución** en gráficas.
 - *Ejercicios:* tu biblioteca, con explicación y vídeo (subido desde el móvil u ordenador, o con un enlace).
+- *Material:* publica material (nuevo o de segunda mano), mira quién se interesa por tus anuncios y, desde la ficha de un perro, **recomienda** material a su familia.
 - *Formación:* artículos y vídeos para los clientes. Puedes marcarlos "de pago" (de momento solo se muestran bloqueados).
 
 **Como cliente (ana@demo.com)**
 - *Deberes:* lo que te ha mandado tu adiestrador. Al abrir uno ves el vídeo y la explicación, puedes marcarlo como hecho y apuntar las prácticas en casa.
 - *Mis perros:* la ficha, la evolución y las sesiones de cada perro.
 - *Prácticas:* el historial de todo lo que habéis practicado en casa.
+- *Material:* anuncios de otros socios. Pulsa «Me interesa» y verás el contacto del anunciante. También puedes publicar lo tuyo (prueba con la cámara del móvil). En *Deberes* verás lo que te recomienda tu adiestrador.
 - *Formación:* el contenido formativo.
 
 ## Notas técnicas (para el futuro)
 
 - **Tecnología:** Next.js 15 + Prisma + SQLite + Tailwind.
 - **Pasar a PostgreSQL:** en `prisma/schema.prisma` cambia `provider = "sqlite"` por `"postgresql"`, pon la nueva `DATABASE_URL` en `.env`, borra `prisma/migrations` y ejecuta `npx prisma migrate dev --name inicio`. El esquema no usa nada exclusivo de SQLite.
-- **Vídeos:** se guardan en `uploads/` a través de `src/lib/storage.ts`. Para usar la nube (S3, R2…) hay que añadir otra implementación de `Storage` allí y elegirla con `STORAGE_DRIVER`. La base de datos solo guarda la "clave" de cada archivo.
+- **Vídeos y fotos:** se guardan en `uploads/` a través de `src/lib/storage.ts`. Para usar la nube (S3, R2…) hay que añadir otra implementación de `Storage` allí y elegirla con `STORAGE_DRIVER`. La base de datos solo guarda la "clave" de cada archivo.
 - **Contenido de pago:** `Content` ya tiene `isPremium` y `priceCents`, preparado para añadir pagos.
 - **Sesiones:** cookie firmada (`AUTH_SECRET` en `.env`), contraseñas cifradas con bcrypt.

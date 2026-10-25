@@ -25,8 +25,20 @@ async function sampleVideo(name: string) {
   return key;
 }
 
+// Copia una foto de ejemplo a la carpeta de archivos y devuelve su clave.
+async function samplePhoto(name: string) {
+  const root = process.env.STORAGE_LOCAL_DIR ?? "./uploads";
+  const key = `ejemplos/${name}.jpg`;
+  await mkdir(path.join(root, "ejemplos"), { recursive: true });
+  await copyFile(path.join(__dirname, "seed-assets", `${name}.jpg`), path.join(root, key));
+  return key;
+}
+
 async function main() {
   // Vaciar (en orden para respetar las relaciones)
+  await db.recommendation.deleteMany();
+  await db.listingInterest.deleteMany();
+  await db.listing.deleteMany();
   await db.homePractice.deleteMany();
   await db.sessionExercise.deleteMany();
   await db.trainingSession.deleteMany();
@@ -260,6 +272,62 @@ async function main() {
       isPremium: true,
       priceCents: 999,
     },
+  });
+
+  // Material (anuncios entre socios)
+  const arnes = await db.listing.create({
+    data: {
+      sellerId: trainer.id,
+      title: "Arnés antitirones talla M",
+      description: "Arnés con enganche delantero, ideal para aprender a pasear sin tirar. Lo uso en mis clases y lo recomiendo.",
+      category: "Arneses",
+      condition: "NEW",
+      priceCents: 2490,
+      location: "Madrid",
+      photoKey: await samplePhoto("arnes"),
+    },
+  });
+  await db.listing.create({
+    data: {
+      sellerId: trainer.id,
+      title: "Pack de 3 clickers",
+      description: "Clickers con muñequera. Perfectos para empezar a trabajar con refuerzo positivo.",
+      category: "Material de adiestramiento",
+      condition: "NEW",
+      priceCents: 900,
+      location: "Madrid",
+      photoKey: await samplePhoto("clicker"),
+    },
+  });
+  const transportin = await db.listing.create({
+    data: {
+      sellerId: ana.id,
+      title: "Transportín para perro mediano",
+      description: "Usado pero en muy buen estado. Toby ya no cabe. 60 × 40 × 40 cm.",
+      category: "Transportines y camas",
+      condition: "USED",
+      priceCents: 1500,
+      location: "Alcobendas",
+      photoKey: await samplePhoto("transportin"),
+    },
+  });
+  await db.listing.create({
+    data: {
+      sellerId: pedro.id,
+      title: "Correa larga de 10 metros",
+      description: "La usamos para practicar la llamada en el campo. Algo gastada, pero funciona perfecta. ¡Os la regalo!",
+      category: "Collares y correas",
+      condition: "USED",
+      isFree: true,
+      location: "Getafe",
+      photoKey: await samplePhoto("correa"),
+    },
+  });
+  await db.listingInterest.create({
+    data: { listingId: transportin.id, userId: pedro.id, message: "¡Hola! ¿Sigue disponible? Me vendría genial." },
+  });
+  await db.recommendation.create({
+    data: { trainerId: trainer.id, dogId: rocky.id, listingId: arnes.id, note: "Para el paseo sin tirar: con este irá mucho más rápido." },
   });
 
   console.log("✔ Datos de ejemplo creados. Contraseña de todos los usuarios:", PASSWORD);

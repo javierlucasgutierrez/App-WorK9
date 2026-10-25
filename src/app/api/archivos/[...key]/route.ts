@@ -1,9 +1,16 @@
 import { getSession } from "@/lib/auth";
 import { storage } from "@/lib/storage";
 
-const TYPES: Record<string, string> = { mp4: "video/mp4", webm: "video/webm", mov: "video/quicktime" };
+const TYPES: Record<string, string> = {
+  mp4: "video/mp4",
+  webm: "video/webm",
+  mov: "video/quicktime",
+  jpg: "image/jpeg",
+  png: "image/png",
+  webp: "image/webp",
+};
 
-// Sirve los vídeos guardados, solo a usuarios conectados.
+// Sirve los vídeos y fotos guardados, solo a usuarios conectados.
 // Admite "Range" (peticiones por trozos), necesario para que los vídeos funcionen en iPhone.
 export async function GET(req: Request, { params }: { params: Promise<{ key: string[] }> }) {
   if (!(await getSession())) return new Response("No autorizado", { status: 401 });

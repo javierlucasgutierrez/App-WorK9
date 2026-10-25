@@ -5,6 +5,7 @@ const items = [
   { href: "/adiestrador", label: "Inicio", icon: "🏠" },
   { href: "/adiestrador/clientes", label: "Clientes", icon: "👥" },
   { href: "/adiestrador/ejercicios", label: "Ejercicios", icon: "🎯" },
+  { href: "/adiestrador/material", label: "Material", icon: "🦴" },
   { href: "/adiestrador/formacion", label: "Formación", icon: "📚" },
 ];
 

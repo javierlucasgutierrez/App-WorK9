@@ -2,6 +2,7 @@ import Link from "next/link";
 import { joinTrainer } from "@/app/actions/client";
 import { ActionForm, SubmitButton } from "@/components/ActionForm";
 import { Field } from "@/components/Field";
+import { RecommendationList } from "@/components/market/RecommendationList";
 import { Empty, StatusBadge } from "@/components/ui";
 import { requireClient } from "@/lib/auth";
 import { db } from "@/lib/db";
@@ -9,7 +10,7 @@ import { formatDate } from "@/lib/format";
 
 export default async function ClientHome() {
   const client = await requireClient();
-  const [trainer, dogs] = await Promise.all([
+  const [trainer, dogs, recommendations] = await Promise.all([
     client.trainerId ? db.user.findUnique({ where: { id: client.trainerId } }) : null,
     db.dog.findMany({
       where: { ownerId: client.id },
@@ -20,6 +21,12 @@ export default async function ClientHome() {
         },
       },
       orderBy: { name: "asc" },
+    }),
+    db.recommendation.findMany({
+      where: { dog: { ownerId: client.id }, listing: { status: { not: "SOLD" } } },
+      include: { listing: true, trainer: true, dog: true },
+      orderBy: { createdAt: "desc" },
+      take: 5,
     }),
   ]);
 
@@ -38,6 +45,13 @@ export default async function ClientHome() {
             <SubmitButton>Unirme</SubmitButton>
           </ActionForm>
         </div>
+      )}
+
+      {recommendations.length > 0 && (
+        <section className="space-y-3">
+          <h2 className="h2">⭐ Tu adiestrador te recomienda</h2>
+          <RecommendationList items={recommendations} base="/cliente/material" />
+        </section>
       )}
 
       {dogs.length === 0 ? (

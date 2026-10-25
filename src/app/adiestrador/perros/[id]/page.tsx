@@ -1,11 +1,13 @@
 import Link from "next/link";
 import { notFound } from "next/navigation";
+import { deleteRecommendation, recommendListing } from "@/app/actions/market";
 import { createAssignment, deleteAssignment, deleteSession, updateDog } from "@/app/actions/trainer";
 import { ActionForm, SubmitButton } from "@/components/ActionForm";
 import { AssignmentSummary } from "@/components/AssignmentCard";
 import { ConfirmButton } from "@/components/ConfirmButton";
 import { DogFields } from "@/components/DogFields";
 import { DogProgress } from "@/components/DogProgress";
+import { RecommendationList } from "@/components/market/RecommendationList";
 import { Field, TextArea } from "@/components/Field";
 import { SessionList } from "@/components/SessionList";
 import { Collapsible, Empty, PageHeader } from "@/components/ui";
@@ -21,13 +23,19 @@ export default async function TrainerDogPage({ params }: { params: Promise<{ id:
   const dog = await getTrainerDog(trainer.id, id);
   if (!dog) notFound();
 
-  const [assignments, exercises] = await Promise.all([
+  const [assignments, exercises, recommendations, listings] = await Promise.all([
     db.assignment.findMany({
       where: { dogId: dog.id },
       include: { exercise: true, homePractices: true },
       orderBy: [{ status: "desc" }, { createdAt: "desc" }],
     }),
     db.exercise.findMany({ where: { trainerId: trainer.id }, orderBy: { title: "asc" } }),
+    db.recommendation.findMany({
+      where: { dogId: dog.id },
+      include: { listing: true, trainer: true, dog: true },
+      orderBy: { createdAt: "desc" },
+    }),
+    db.listing.findMany({ where: { status: { not: "SOLD" } }, orderBy: { title: "asc" } }),
   ]);
 
   return (
@@ -104,6 +112,49 @@ export default async function TrainerDogPage({ params }: { params: Promise<{ id:
               </form>
             </AssignmentSummary>
           ))
+        )}
+      </section>
+
+      <section className="mb-6 space-y-3">
+        <h2 className="h2">Material recomendado</h2>
+        <Collapsible title="+ Recomendar material">
+          {listings.length === 0 ? (
+            <p className="muted">
+              Todavía no hay anuncios.{" "}
+              <Link href="/adiestrador/material/nuevo" className="link">
+                Publica tu material
+              </Link>{" "}
+              o espera a que lo hagan otros socios.
+            </p>
+          ) : (
+            <ActionForm action={recommendListing.bind(null, dog.id)} resetOnSuccess>
+              <div>
+                <label htmlFor="listingId" className="label">
+                  Anuncio
+                </label>
+                <select id="listingId" name="listingId" className="input" required>
+                  {listings.map((l) => (
+                    <option key={l.id} value={l.id}>
+                      {l.title}
+                    </option>
+                  ))}
+                </select>
+              </div>
+              <Field label="¿Por qué se lo recomiendas? (opcional)" name="note" placeholder="Ej.: para el paseo sin tirar" />
+              <SubmitButton>Recomendar</SubmitButton>
+            </ActionForm>
+          )}
+        </Collapsible>
+        {recommendations.length > 0 && (
+          <RecommendationList
+            items={recommendations}
+            base="/adiestrador/material"
+            renderActions={(id) => (
+              <form action={deleteRecommendation.bind(null, id)}>
+                <ConfirmButton message="¿Quitar esta recomendación?">Quitar</ConfirmButton>
+              </form>
+            )}
+          />
         )}
       </section>
 

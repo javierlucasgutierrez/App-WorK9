@@ -40,6 +40,9 @@ model User {
   trainingSessions  TrainingSession[]
   homePractices     HomePractice[]
   contents          Content[]
+  listings          Listing[]
+  interests         ListingInterest[]
+  recommendations   Recommendation[]
 
   @@index([trainerId])
 }
@@ -61,6 +64,7 @@ model Dog {
   assignments      Assignment[]
   trainingSessions TrainingSession[]
   homePractices    HomePractice[]
+  recommendations  Recommendation[]
 
   @@index([ownerId])
 }
@@ -178,4 +182,58 @@ model Content {
 
   authorId String
   author   User   @relation(fields: [authorId], references: [id], onDelete: Cascade)
+}
+
+// Anuncio de material (nuevo o de segunda mano) que publica cualquier socio.
+model Listing {
+  id          String   @id @default(cuid())
+  title       String
+  description String
+  category    String // ver LISTING_CATEGORIES en src/lib/constants.ts
+  condition   String // "NEW" | "USED"
+  priceCents  Int? // vacío si es gratis
+  isFree      Boolean  @default(false)
+  location    String? // zona o ciudad
+  photoKey    String? // foto subida (ver src/lib/storage.ts)
+  status      String   @default("ACTIVE") // "ACTIVE" | "RESERVED" | "SOLD"
+  createdAt   DateTime @default(now())
+
+  sellerId String
+  seller   User   @relation(fields: [sellerId], references: [id], onDelete: Cascade)
+
+  interests       ListingInterest[]
+  recommendations Recommendation[]
+
+  @@index([sellerId])
+  @@index([status])
+}
+
+// «Me interesa»: un socio avisa al anunciante.
+model ListingInterest {
+  id        String   @id @default(cuid())
+  message   String?
+  createdAt DateTime @default(now())
+
+  listingId String
+  listing   Listing @relation(fields: [listingId], references: [id], onDelete: Cascade)
+  userId    String
+  user      User    @relation(fields: [userId], references: [id], onDelete: Cascade)
+
+  @@unique([listingId, userId])
+}
+
+// El adiestrador recomienda un anuncio para un perro concreto.
+model Recommendation {
+  id        String   @id @default(cuid())
+  note      String?
+  createdAt DateTime @default(now())
+
+  trainerId String
+  trainer   User    @relation(fields: [trainerId], references: [id], onDelete: Cascade)
+  dogId     String
+  dog       Dog     @relation(fields: [dogId], references: [id], onDelete: Cascade)
+  listingId String
+  listing   Listing @relation(fields: [listingId], references: [id], onDelete: Cascade)
+
+  @@index([dogId])
 }

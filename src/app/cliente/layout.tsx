@@ -5,6 +5,7 @@ const items = [
   { href: "/cliente", label: "Deberes", icon: "✅" },
   { href: "/cliente/perros", label: "Mis perros", icon: "🐕" },
   { href: "/cliente/practicas", label: "Prácticas", icon: "📝" },
+  { href: "/cliente/material", label: "Material", icon: "🦴" },
   { href: "/cliente/formacion", label: "Formación", icon: "📚" },
 ];
 
