@@ -39,7 +39,7 @@ export default async function ClientHome() {
 
       {!trainer && (
         <div className="card">
-          <h2 className="h2 mb-3">Únete a tu adiestrador</h2>
+          <h2 className="h2 mb-3">¿Tienes adiestrador? Únete con su código</h2>
           <ActionForm action={joinTrainer}>
             <Field label="Código de invitación" name="inviteCode" placeholder="Ej.: MARTA-1234" required />
             <SubmitButton>Unirme</SubmitButton>

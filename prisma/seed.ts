@@ -274,60 +274,77 @@ async function main() {
     },
   });
 
-  // Material (anuncios entre socios)
-  const arnes = await db.listing.create({
-    data: {
-      sellerId: trainer.id,
-      title: "Arnés antitirones talla M",
-      description: "Arnés con enganche delantero, ideal para aprender a pasear sin tirar. Lo uso en mis clases y lo recomiendo.",
-      category: "Arneses",
-      condition: "NEW",
-      priceCents: 2490,
-      location: "Madrid",
-      photoKey: await samplePhoto("arnes"),
-    },
+  // Material de perro de trabajo (anuncios entre socios, nuevo y de segunda mano)
+  const listing = async (
+    sellerId: string,
+    photo: string,
+    data: { title: string; description: string; category: string; condition: "NEW" | "USED"; priceCents?: number; location: string },
+  ) =>
+    db.listing.create({
+      data: { ...data, sellerId, isFree: data.priceCents == null, photoKey: await samplePhoto(photo) },
+    });
+
+  const arnes = await listing(trainer.id, "arnes", {
+    title: "Arnés de rastreo acolchado",
+    description: "Arnés en Y con anilla dorsal, acolchado en el pecho. Tallas M y L. Lo uso en mis cursos de rastreo.",
+    category: "Arneses",
+    condition: "NEW",
+    priceCents: 4500,
+    location: "Madrid",
   });
-  await db.listing.create({
-    data: {
-      sellerId: trainer.id,
-      title: "Pack de 3 clickers",
-      description: "Clickers con muñequera. Perfectos para empezar a trabajar con refuerzo positivo.",
-      category: "Material de adiestramiento",
-      condition: "NEW",
-      priceCents: 900,
-      location: "Madrid",
-      photoKey: await samplePhoto("clicker"),
-    },
+  await listing(trainer.id, "manga", {
+    title: "Manga de mordida de yute (nivel intermedio)",
+    description: "Manga de yute con funda intercambiable. Ideal para perros jóvenes que ya han pasado del rulo.",
+    category: "Mordida",
+    condition: "NEW",
+    priceCents: 8900,
+    location: "Madrid",
   });
-  const transportin = await db.listing.create({
-    data: {
-      sellerId: ana.id,
-      title: "Transportín para perro mediano",
-      description: "Usado pero en muy buen estado. Toby ya no cabe. 60 × 40 × 40 cm.",
-      category: "Transportines y camas",
-      condition: "USED",
-      priceCents: 1500,
-      location: "Alcobendas",
-      photoKey: await samplePhoto("transportin"),
-    },
+  await listing(trainer.id, "kit", {
+    title: "Kit de olores para detección (5 latas)",
+    description: "Cinco latas con tapa perforada y soporte. Para iniciación a la detección con olores neutros.",
+    category: "Detección",
+    condition: "NEW",
+    priceCents: 3500,
+    location: "Madrid",
   });
-  await db.listing.create({
-    data: {
-      sellerId: pedro.id,
-      title: "Correa larga de 10 metros",
-      description: "La usamos para practicar la llamada en el campo. Algo gastada, pero funciona perfecta. ¡Os la regalo!",
-      category: "Collares y correas",
-      condition: "USED",
-      isFree: true,
-      location: "Getafe",
-      photoKey: await samplePhoto("correa"),
-    },
+  const traje = await listing(pedro.id, "traje", {
+    title: "Traje de figurante completo talla L",
+    description: "Chaqueta y pantalón. Dos temporadas de uso, costuras revisadas y sin roturas.",
+    category: "Mordida",
+    condition: "USED",
+    priceCents: 32000,
+    location: "Getafe",
   });
+  await listing(ana.id, "jaula", {
+    title: "Jaula de aluminio para coche (2 perros)",
+    description: "Doble puerta con cierre y ventilación lateral. Medidas: 90 × 80 × 70 cm. Algún rasguño, nada más.",
+    category: "Transporte",
+    condition: "USED",
+    priceCents: 25000,
+    location: "Alcobendas",
+  });
+  await listing(ana.id, "bocado", {
+    title: "Bocado de yute (pack de 2)",
+    description: "Usados en pocas sesiones. Buenos para cachorros.",
+    category: "Mordida",
+    condition: "USED",
+    priceCents: 1200,
+    location: "Alcobendas",
+  });
+  await listing(pedro.id, "correa", {
+    title: "Línea de rastreo de 10 m (biothane)",
+    description: "No absorbe agua y no se enreda. Algo gastada, pero funciona perfecta. ¡Os la regalo!",
+    category: "Rastreo",
+    condition: "USED",
+    location: "Getafe",
+  });
+
   await db.listingInterest.create({
-    data: { listingId: transportin.id, userId: pedro.id, message: "¡Hola! ¿Sigue disponible? Me vendría genial." },
+    data: { listingId: traje.id, userId: trainer.id, message: "Hola Pedro, ¿me lo dejas probar este fin de semana?" },
   });
   await db.recommendation.create({
-    data: { trainerId: trainer.id, dogId: rocky.id, listingId: arnes.id, note: "Para el paseo sin tirar: con este irá mucho más rápido." },
+    data: { trainerId: trainer.id, dogId: rocky.id, listingId: arnes.id, note: "Para empezar con el rastreo en el parque." },
   });
 
   console.log("✔ Datos de ejemplo creados. Contraseña de todos los usuarios:", PASSWORD);

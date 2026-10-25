@@ -14,8 +14,8 @@ export function RegisterForm() {
         <legend className="label">Soy…</legend>
         {(
           [
-            ["CLIENT", "Cliente / familia"],
-            ["TRAINER", "Adiestrador/a"],
+            ["CLIENT", "Particular / cliente"],
+            ["TRAINER", "Profesional / adiestrador"],
           ] as const
         ).map(([value, label]) => (
           <label
@@ -45,14 +45,13 @@ export function RegisterForm() {
       {role === "CLIENT" && (
         <>
           <Field
-            label="Código de tu adiestrador"
+            label="Código de tu adiestrador (si tienes)"
             name="inviteCode"
             placeholder="Ej.: MARTA-1234"
             autoCapitalize="characters"
-            required
           />
           <div className="rounded-xl bg-gray-50 p-3">
-            <p className="mb-3 text-sm font-medium">Tu perro (puedes añadir más después)</p>
+            <p className="mb-3 text-sm font-medium">Tu perro (opcional, puedes añadir más después)</p>
             <div className="space-y-3">
               <Field label="Nombre del perro" name="dogName" />
               <Field label="Raza" name="dogBreed" />

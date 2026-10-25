@@ -16,8 +16,8 @@ export default async function Home() {
         </h1>
         <p className="mt-4 font-semibold text-gray-700">{BRAND.slogan}</p>
         <p className="mt-3 text-gray-600">
-          El punto de encuentro de adiestradores, familias y amantes del perro: deberes, vídeos, evolución de cada
-          perro y, muy pronto, material nuevo y de segunda mano.
+          El punto de encuentro del perro de trabajo: compra y vende material nuevo y de segunda mano (mordida,
+          detección, rastreo…) y, si eres adiestrador, sigue la evolución de cada perro con tus clientes.
         </p>
       </div>
       <div className="flex flex-col gap-3">

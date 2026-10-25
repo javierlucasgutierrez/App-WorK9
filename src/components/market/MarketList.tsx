@@ -5,7 +5,7 @@ import { db } from "@/lib/db";
 import { LISTING_CATEGORIES } from "@/lib/constants";
 import { ListingCard } from "./ListingCard";
 
-export type MarketFilters = { tipo?: string; cat?: string; mios?: string };
+export type MarketFilters = { tipo?: string; cat?: string; mios?: string; q?: string };
 
 const TYPES = [
   ["", "Todo"],
@@ -23,6 +23,8 @@ export async function MarketList({ userId, base, filters }: { userId: string; ba
     if (filters.tipo === "nuevo") where.condition = "NEW";
     if (filters.tipo === "gratis") where.isFree = true;
     if (filters.cat && LISTING_CATEGORIES.includes(filters.cat)) where.category = filters.cat;
+    const q = filters.q?.trim();
+    if (q) where.OR = [{ title: { contains: q } }, { description: { contains: q } }];
   }
   const listings = await db.listing.findMany({ where, orderBy: { createdAt: "desc" } });
 
@@ -40,15 +42,30 @@ export async function MarketList({ userId, base, filters }: { userId: string; ba
     <>
       <PageHeader
         title="Material"
-        subtitle="Nuevo y de segunda mano, entre socios del club."
+        subtitle="Material de perro de trabajo, nuevo y de segunda mano."
         action={
           <Link href={`${base}/nuevo`} className="btn shrink-0">
             + Publicar
           </Link>
         }
       />
+      {!mine && (
+        <form action={base} className="mb-3 flex gap-2" role="search">
+          {filters.tipo && <input type="hidden" name="tipo" value={filters.tipo} />}
+          {filters.cat && <input type="hidden" name="cat" value={filters.cat} />}
+          <input
+            name="q"
+            type="search"
+            defaultValue={filters.q ?? ""}
+            placeholder="Buscar: manga, bozal, jaula…"
+            aria-label="Buscar material"
+            className="input"
+          />
+          <button className="btn shrink-0">Buscar</button>
+        </form>
+      )}
       <div className="mb-3 flex gap-2 overflow-x-auto pb-1">
-        <Link href={base} className={chip(!mine && !filters.tipo)}>
+        <Link href={href({ tipo: "", mios: "" })} className={chip(!mine && !filters.tipo)}>
           Todo
         </Link>
         {TYPES.slice(1).map(([value, label]) => (
@@ -73,7 +90,11 @@ export async function MarketList({ userId, base, filters }: { userId: string; ba
         </div>
       )}
       {listings.length === 0 ? (
-        <Empty>{mine ? "Aún no has publicado nada. ¡Anímate con lo que ya no uses!" : "No hay anuncios con estos filtros."}</Empty>
+        <Empty>{mine
+            ? "Aún no has publicado nada. ¡Anímate con lo que ya no uses!"
+            : filters.q
+              ? `No hay anuncios con «${filters.q}». Prueba con otra palabra.`
+              : "No hay anuncios con estos filtros."}</Empty>
       ) : (
         <ul className="grid grid-cols-2 gap-3 md:grid-cols-3">
           {listings.map((l) => (

@@ -37,10 +37,11 @@ export async function register(_: FormState, form: FormData): Promise<FormState>
   if (await db.user.findUnique({ where: { email } })) return { error: "Ya existe una cuenta con ese correo." };
 
   let trainerId: string | undefined;
-  if (role === ROLES.CLIENT) {
-    const code = text(form, "inviteCode").toUpperCase();
-    const trainer = code ? await db.user.findUnique({ where: { inviteCode: code } }) : null;
-    if (!trainer) return { error: "El código de invitación no es válido. Pídeselo a tu adiestrador." };
+  // El código del adiestrador es opcional: sin él, la cuenta sirve para el material y la formación.
+  const code = text(form, "inviteCode").toUpperCase();
+  if (role === ROLES.CLIENT && code) {
+    const trainer = await db.user.findUnique({ where: { inviteCode: code } });
+    if (!trainer) return { error: "El código de invitación no es válido. Revísalo o déjalo en blanco." };
     trainerId = trainer.id;
   }
 

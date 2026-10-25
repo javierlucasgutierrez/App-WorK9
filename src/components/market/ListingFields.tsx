@@ -1,4 +1,4 @@
-import { LISTING_CATEGORIES } from "@/lib/constants";
+import { LISTING_CATEGORIES, LISTING_CATEGORY_HINTS } from "@/lib/constants";
 import { MAX_IMAGE_MB } from "@/lib/storage";
 import { Field, TextArea } from "../Field";
 
@@ -16,7 +16,7 @@ type Listing = {
 export function ListingFields({ listing }: { listing?: Listing }) {
   return (
     <div className="space-y-3">
-      <Field label="¿Qué ofreces?" name="title" placeholder="Ej.: Arnés antitirones talla M" defaultValue={listing?.title} required />
+      <Field label="¿Qué ofreces?" name="title" placeholder="Ej.: Manga de mordida de yute" defaultValue={listing?.title} required />
       <div className="grid grid-cols-2 gap-3">
         <div>
           <label htmlFor="category" className="label">
@@ -24,7 +24,9 @@ export function ListingFields({ listing }: { listing?: Listing }) {
           </label>
           <select id="category" name="category" className="input" defaultValue={listing?.category ?? LISTING_CATEGORIES[0]}>
             {LISTING_CATEGORIES.map((c) => (
-              <option key={c}>{c}</option>
+              <option key={c} value={c}>
+                {c} ({LISTING_CATEGORY_HINTS[c]})
+              </option>
             ))}
           </select>
         </div>
@@ -42,7 +44,7 @@ export function ListingFields({ listing }: { listing?: Listing }) {
         label="Descripción"
         name="description"
         rows={4}
-        placeholder="Talla, estado, para qué perro sirve…"
+        placeholder="Marca, talla, nivel, estado, uso que ha tenido…"
         defaultValue={listing?.description}
         required
       />
