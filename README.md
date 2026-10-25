@@ -1,4 +1,6 @@
-# 🐾 WorK9
+# 🐾 Kanu
+
+**Tu entrenador canino de bolsillo.**
 
 Web (pensada para el móvil) para adiestradores caninos y sus clientes.
 

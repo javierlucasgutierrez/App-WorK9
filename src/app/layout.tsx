@@ -2,7 +2,7 @@ import type { Metadata, Viewport } from "next";
 import "./globals.css";
 
 export const metadata: Metadata = {
-  title: "WorK9 · Adiestramiento canino",
+  title: "Kanu · Tu entrenador canino de bolsillo",
   description: "Deberes, sesiones y evolución de cada perro, para adiestradores y familias.",
 };
 
