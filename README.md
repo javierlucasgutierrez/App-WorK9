@@ -38,6 +38,20 @@ Con el móvil en la **misma wifi** que el ordenador, abre en el móvil la direcc
 Para volver a dejar los datos de ejemplo como al principio: `npm run db:seed` (¡borra todo lo demás!).
 Para ver la base de datos como una hoja de cálculo: `npm run db:studio`.
 
+## Qué puedes probar
+
+**Como adiestradora (adiestrador@demo.com)**
+- *Inicio:* resumen, tu código de invitación y las últimas prácticas que han apuntado las familias.
+- *Clientes:* da de alta clientes y perros. Desde la ficha de un perro puedes mandar deberes, registrar una sesión (**+ Sesión**) y ver su **evolución** en gráficas.
+- *Ejercicios:* tu biblioteca, con explicación y vídeo (subido desde el móvil u ordenador, o con un enlace).
+- *Formación:* artículos y vídeos para los clientes. Puedes marcarlos "de pago" (de momento solo se muestran bloqueados).
+
+**Como cliente (ana@demo.com)**
+- *Deberes:* lo que te ha mandado tu adiestrador. Al abrir uno ves el vídeo y la explicación, puedes marcarlo como hecho y apuntar las prácticas en casa.
+- *Mis perros:* la ficha, la evolución y las sesiones de cada perro.
+- *Prácticas:* el historial de todo lo que habéis practicado en casa.
+- *Formación:* el contenido formativo.
+
 ## Notas técnicas (para el futuro)
 
 - **Tecnología:** Next.js 15 + Prisma + SQLite + Tailwind.

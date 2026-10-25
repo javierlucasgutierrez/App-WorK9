@@ -212,3 +212,62 @@ export async function deleteSession(sessionId: string) {
   await db.trainingSession.delete({ where: { id: sessionId } });
   revalidatePath(`/adiestrador/perros/${session.dogId}`);
 }
+
+// ---------- Contenido formativo ----------
+
+async function contentDataFromForm(form: FormData) {
+  const isPremium = form.get("isPremium") === "on";
+  const price = optionalNumber(form, "price");
+  return {
+    title: text(form, "title"),
+    summary: text(form, "summary"),
+    body: text(form, "body"),
+    videoUrl: optionalText(form, "videoUrl"),
+    isPremium,
+    priceCents: isPremium && price != null ? Math.round(price * 100) : null,
+    published: form.get("published") === "on",
+    videoKey: await saveVideoFromForm(form, "video", "formacion"),
+  };
+}
+
+export async function createContent(_: FormState, form: FormData): Promise<FormState> {
+  const trainer = await requireTrainer();
+  if (!text(form, "title") || !text(form, "summary")) return { error: "Escribe un título y un resumen." };
+  let id: string;
+  try {
+    const data = await contentDataFromForm(form);
+    id = (await db.content.create({ data: { ...data, authorId: trainer.id } })).id;
+  } catch (e) {
+    return { error: (e as Error).message };
+  }
+  redirect(`/adiestrador/formacion/${id}`);
+}
+
+export async function updateContent(contentId: string, _: FormState, form: FormData): Promise<FormState> {
+  const trainer = await requireTrainer();
+  const content = await db.content.findFirst({ where: { id: contentId, authorId: trainer.id } });
+  if (!content) return NOT_FOUND;
+  if (!text(form, "title") || !text(form, "summary")) return { error: "Escribe un título y un resumen." };
+  try {
+    const { videoKey, ...data } = await contentDataFromForm(form);
+    const removeVideo = form.get("removeVideo") === "on";
+    await db.content.update({
+      where: { id: contentId },
+      data: { ...data, ...(videoKey || removeVideo ? { videoKey } : {}) },
+    });
+    if ((videoKey || removeVideo) && content.videoKey) await removeIfUnused(content.videoKey);
+  } catch (e) {
+    return { error: (e as Error).message };
+  }
+  revalidatePath(`/adiestrador/formacion/${contentId}`);
+  return { ok: "Contenido guardado." };
+}
+
+export async function deleteContent(contentId: string) {
+  const trainer = await requireTrainer();
+  const content = await db.content.findFirst({ where: { id: contentId, authorId: trainer.id } });
+  if (!content) return;
+  await db.content.delete({ where: { id: contentId } });
+  if (content.videoKey) await removeIfUnused(content.videoKey);
+  redirect("/adiestrador/formacion");
+}
