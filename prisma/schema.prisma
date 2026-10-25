@@ -1,0 +1,181 @@
+// Esquema de la base de datos de WorK9.
+//
+// Ahora usa SQLite (un archivo local). Para pasar a PostgreSQL:
+//   1. Cambia provider = "sqlite" por provider = "postgresql".
+//   2. Cambia DATABASE_URL en .env.
+//   3. Borra la carpeta prisma/migrations y ejecuta: npx prisma migrate dev --name inicio
+// Por eso aquí no se usa nada exclusivo de SQLite: los "tipos" (rol, estado...)
+// se guardan como texto y sus valores permitidos están en src/lib/constants.ts.
+
+generator client {
+  provider = "prisma-client-js"
+}
+
+datasource db {
+  provider = "sqlite"
+  url      = env("DATABASE_URL")
+}
+
+// Persona que entra en la app: adiestrador o cliente.
+model User {
+  id           String   @id @default(cuid())
+  email        String   @unique
+  passwordHash String
+  name         String
+  phone        String?
+  role         String // "TRAINER" | "CLIENT"
+  createdAt    DateTime @default(now())
+
+  // Solo adiestradores: código que dan a sus clientes para registrarse.
+  inviteCode String? @unique
+
+  // Solo clientes: su adiestrador.
+  trainerId String?
+  trainer   User?   @relation("TrainerClients", fields: [trainerId], references: [id], onDelete: SetNull)
+  clients   User[]  @relation("TrainerClients")
+
+  dogs              Dog[]             @relation("DogOwner")
+  exercises         Exercise[]
+  assignmentsGiven  Assignment[]      @relation("AssignmentTrainer")
+  trainingSessions  TrainingSession[]
+  homePractices     HomePractice[]
+  contents          Content[]
+
+  @@index([trainerId])
+}
+
+// Ficha del perro.
+model Dog {
+  id        String    @id @default(cuid())
+  name      String
+  breed     String?
+  sex       String? // "MALE" | "FEMALE"
+  birthDate DateTime?
+  weightKg  Float?
+  notes     String? // carácter, salud, objetivos...
+  createdAt DateTime  @default(now())
+
+  ownerId String
+  owner   User   @relation("DogOwner", fields: [ownerId], references: [id], onDelete: Cascade)
+
+  assignments      Assignment[]
+  trainingSessions TrainingSession[]
+  homePractices    HomePractice[]
+
+  @@index([ownerId])
+}
+
+// Biblioteca de ejercicios de cada adiestrador (explicación + vídeo).
+model Exercise {
+  id          String   @id @default(cuid())
+  title       String
+  description String
+  videoKey    String? // vídeo subido (ver src/lib/storage.ts)
+  videoUrl    String? // o un enlace externo (YouTube, etc.)
+  createdAt   DateTime @default(now())
+
+  trainerId String
+  trainer   User   @relation(fields: [trainerId], references: [id], onDelete: Cascade)
+
+  assignments      Assignment[]
+  sessionExercises SessionExercise[]
+  homePractices    HomePractice[]
+
+  @@index([trainerId])
+}
+
+// Deber: un ejercicio que el adiestrador manda practicar a un perro.
+model Assignment {
+  id           String    @id @default(cuid())
+  instructions String? // indicaciones concretas para esta familia
+  targetReps   Int? // repeticiones recomendadas por día
+  dueDate      DateTime?
+  status       String    @default("PENDING") // "PENDING" | "DONE"
+  completedAt  DateTime?
+  createdAt    DateTime  @default(now())
+
+  dogId      String
+  dog        Dog      @relation(fields: [dogId], references: [id], onDelete: Cascade)
+  exerciseId String
+  exercise   Exercise @relation(fields: [exerciseId], references: [id], onDelete: Cascade)
+  trainerId  String
+  trainer    User     @relation("AssignmentTrainer", fields: [trainerId], references: [id], onDelete: Cascade)
+
+  homePractices HomePractice[]
+
+  @@index([dogId])
+  @@index([trainerId])
+}
+
+// Sesión de entrenamiento con el adiestrador.
+model TrainingSession {
+  id        String   @id @default(cuid())
+  date      DateTime
+  notes     String?
+  createdAt DateTime @default(now())
+
+  dogId     String
+  dog       Dog    @relation(fields: [dogId], references: [id], onDelete: Cascade)
+  trainerId String
+  trainer   User   @relation(fields: [trainerId], references: [id], onDelete: Cascade)
+
+  exercises SessionExercise[]
+
+  @@index([dogId])
+}
+
+// Resultado de un ejercicio dentro de una sesión.
+model SessionExercise {
+  id        String  @id @default(cuid())
+  successes Int     @default(0)
+  failures  Int     @default(0)
+  notes     String?
+
+  sessionId  String
+  session    TrainingSession @relation(fields: [sessionId], references: [id], onDelete: Cascade)
+  exerciseId String
+  exercise   Exercise        @relation(fields: [exerciseId], references: [id], onDelete: Cascade)
+
+  @@index([sessionId])
+  @@index([exerciseId])
+}
+
+// Práctica que la familia registra en casa.
+model HomePractice {
+  id          String   @id @default(cuid())
+  date        DateTime
+  repetitions Int      @default(0)
+  successes   Int      @default(0)
+  notes       String?
+  createdAt   DateTime @default(now())
+
+  dogId        String
+  dog          Dog         @relation(fields: [dogId], references: [id], onDelete: Cascade)
+  clientId     String
+  client       User        @relation(fields: [clientId], references: [id], onDelete: Cascade)
+  exerciseId   String
+  exercise     Exercise    @relation(fields: [exerciseId], references: [id], onDelete: Cascade)
+  assignmentId String?
+  assignment   Assignment? @relation(fields: [assignmentId], references: [id], onDelete: SetNull)
+
+  @@index([dogId])
+  @@index([assignmentId])
+}
+
+// Contenido formativo general (artículos y vídeos).
+// isPremium + priceCents quedan preparados para cobrar más adelante.
+model Content {
+  id         String   @id @default(cuid())
+  title      String
+  summary    String
+  body       String
+  videoKey   String?
+  videoUrl   String?
+  isPremium  Boolean  @default(false)
+  priceCents Int? // precio en céntimos (p. ej. 499 = 4,99 €)
+  published  Boolean  @default(true)
+  createdAt  DateTime @default(now())
+
+  authorId String
+  author   User   @relation(fields: [authorId], references: [id], onDelete: Cascade)
+}
