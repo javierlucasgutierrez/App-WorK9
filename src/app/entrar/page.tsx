@@ -4,23 +4,24 @@ import { login } from "@/app/actions/auth";
 import { ActionForm, SubmitButton } from "@/components/ActionForm";
 import { AuthShell } from "@/components/AuthShell";
 import { Field } from "@/components/Field";
-import { getSession, homeFor } from "@/lib/auth";
+import { getUser, safeBack } from "@/lib/auth";
 
-export default async function LoginPage() {
-  const session = await getSession();
-  if (session) redirect(homeFor(session.role));
+export default async function LoginPage({ searchParams }: { searchParams: Promise<{ volver?: string }> }) {
+  const back = safeBack((await searchParams).volver);
+  if (await getUser()) redirect(back);
 
   return (
-    <AuthShell title="Entrar">
+    <AuthShell title="Entrar" intro="Entra para publicar anuncios y contactar con otros socios.">
       <ActionForm action={login}>
+        <input type="hidden" name="volver" value={back} />
         <Field label="Correo electrónico" name="email" type="email" autoComplete="email" required />
         <Field label="Contraseña" name="password" type="password" autoComplete="current-password" required />
-        <SubmitButton>Entrar</SubmitButton>
+        <SubmitButton pendingText="Entrando…">Entrar</SubmitButton>
       </ActionForm>
       <p className="muted mt-5 text-center">
-        ¿No tienes cuenta?{" "}
-        <Link href="/registro" className="link">
-          Regístrate
+        ¿Aún no eres socio?{" "}
+        <Link href={`/registro?volver=${encodeURIComponent(back)}`} className="link">
+          Crea tu cuenta gratis
         </Link>
       </p>
     </AuthShell>

@@ -8,8 +8,3 @@ export function optionalNumber(form: FormData, key: string) {
   const n = Number(s);
   return Number.isFinite(n) ? n : null;
 }
-
-export function count(form: FormData, key: string) {
-  const n = optionalNumber(form, key);
-  return n == null ? 0 : Math.max(0, Math.round(n));
-}

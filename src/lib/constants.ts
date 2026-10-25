@@ -1,10 +1,6 @@
 // Valores permitidos para los campos de texto "tipo" de la base de datos.
-export const ROLES = { TRAINER: "TRAINER", CLIENT: "CLIENT" } as const;
-export type Role = (typeof ROLES)[keyof typeof ROLES];
 
-export const ASSIGNMENT_STATUS = { PENDING: "PENDING", DONE: "DONE" } as const;
-
-export const DOG_SEX: Record<string, string> = { MALE: "Macho", FEMALE: "Hembra" };
+export const ACCOUNT_TYPES: Record<string, string> = { INDIVIDUAL: "Particular", PROFESSIONAL: "Profesional" };
 
 // Categorías de material, pensadas para el perro de trabajo.
 export const LISTING_CATEGORIES = [
@@ -20,7 +16,7 @@ export const LISTING_CATEGORIES = [
   "Otros",
 ];
 
-/** Ejemplos de qué entra en cada categoría (se muestran al publicar). */
+/** Ejemplos de qué entra en cada categoría (se muestran al publicar y en el inicio). */
 export const LISTING_CATEGORY_HINTS: Record<string, string> = {
   Mordida: "mangas, trajes, bocados, látigos",
   Detección: "kits de olores, cajas, contenedores",
@@ -34,6 +30,21 @@ export const LISTING_CATEGORY_HINTS: Record<string, string> = {
   Otros: "todo lo demás",
 };
 
+export const LISTING_CATEGORY_ICONS: Record<string, string> = {
+  Mordida: "🦷",
+  Detección: "👃",
+  Rastreo: "🧭",
+  "Obediencia y control": "🦮",
+  Arneses: "🎽",
+  Motivadores: "🎾",
+  Transporte: "🚐",
+  "Equipo del guía": "🎒",
+  "Cursos y servicios": "🎓",
+  Otros: "📦",
+};
+
 export const LISTING_CONDITION: Record<string, string> = { NEW: "Nuevo", USED: "Segunda mano" };
 
 export const LISTING_STATUS: Record<string, string> = { ACTIVE: "Disponible", RESERVED: "Reservado", SOLD: "Vendido" };
+
+export const MAX_PHOTOS = 6;

@@ -1,10 +1,10 @@
-import { fileUrl } from "@/lib/storage";
+import { fileUrl } from "@/lib/files";
 
 /** Foto del anuncio (o un hueco con icono si no tiene). */
-export function ListingPhoto({ photoKey, title, className = "" }: { photoKey: string | null; title: string; className?: string }) {
+export function ListingPhoto({ photoKey, title, className = "" }: { photoKey?: string | null; title: string; className?: string }) {
   if (!photoKey) {
     return (
-      <div className={`flex items-center justify-center bg-brand-50 text-4xl ${className}`} aria-hidden>
+      <div className={`flex items-center justify-center bg-jute-50 text-4xl ${className}`} aria-hidden>
         🦴
       </div>
     );

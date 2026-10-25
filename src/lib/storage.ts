@@ -1,12 +1,10 @@
 import "server-only";
 import { randomUUID } from "crypto";
-import { createReadStream } from "fs";
-import { mkdir, stat, unlink, writeFile } from "fs/promises";
+import { mkdir, readFile, unlink, writeFile } from "fs/promises";
 import path from "path";
-import { Readable } from "stream";
 
 /**
- * "Puerta" única para guardar y leer vídeos.
+ * "Puerta" única para guardar y leer archivos (las fotos de los anuncios).
  *
  * Ahora los guarda en una carpeta local (STORAGE_LOCAL_DIR). Para pasar a la nube
  * (Amazon S3, Cloudflare R2, Bunny...) basta con escribir otra implementación de
@@ -15,23 +13,15 @@ import { Readable } from "stream";
  */
 export interface Storage {
   save(file: File, folder: string): Promise<string>; // devuelve la clave
-  read(key: string, range?: { start: number; end?: number }): Promise<{
-    stream: ReadableStream;
-    size: number;
-  } | null>;
+  read(key: string): Promise<Buffer | null>;
   remove(key: string): Promise<void>;
 }
 
-export const ALLOWED_VIDEO_TYPES = ["video/mp4", "video/webm", "video/quicktime"];
-export const MAX_VIDEO_MB = 200;
 export const ALLOWED_IMAGE_TYPES = ["image/jpeg", "image/png", "image/webp"];
 export const MAX_IMAGE_MB = 10;
 
 // Extensión según el tipo real del archivo (no según el nombre que traiga).
 const EXTENSIONS: Record<string, string> = {
-  "video/mp4": ".mp4",
-  "video/webm": ".webm",
-  "video/quicktime": ".mov",
   "image/jpeg": ".jpg",
   "image/png": ".png",
   "image/webp": ".webp",
@@ -47,20 +37,16 @@ class LocalStorage implements Storage {
   }
 
   async save(file: File, folder: string) {
-    const ext = EXTENSIONS[file.type] ?? (path.extname(file.name).toLowerCase().replace(/[^.a-z0-9]/g, "") || ".bin");
-    const key = `${folder}/${randomUUID()}${ext}`;
+    const key = `${folder}/${randomUUID()}${EXTENSIONS[file.type] ?? ".bin"}`;
     const full = this.resolve(key);
     await mkdir(path.dirname(full), { recursive: true });
     await writeFile(full, Buffer.from(await file.arrayBuffer()));
     return key;
   }
 
-  async read(key: string, range?: { start: number; end?: number }) {
+  async read(key: string) {
     try {
-      const full = this.resolve(key);
-      const { size } = await stat(full);
-      const node = createReadStream(full, range ? { start: range.start, end: range.end } : undefined);
-      return { stream: Readable.toWeb(node) as ReadableStream, size };
+      return await readFile(this.resolve(key));
     } catch {
       return null;
     }
@@ -79,25 +65,13 @@ function createStorage(): Storage {
 
 export const storage = createStorage();
 
-/** Dirección con la que la web pide un vídeo guardado. */
-export function fileUrl(key: string) {
-  return `/api/archivos/${key}`;
-}
-
-/** Valida y guarda un vídeo subido desde un formulario. Devuelve la clave o null si no hay archivo. */
-export async function saveVideoFromForm(form: FormData, field: string, folder: string) {
-  const file = form.get(field);
-  if (!(file instanceof File) || file.size === 0) return null;
-  if (!ALLOWED_VIDEO_TYPES.includes(file.type)) throw new Error("El vídeo debe ser MP4, WebM o MOV.");
-  if (file.size > MAX_VIDEO_MB * 1024 * 1024) throw new Error(`El vídeo no puede pasar de ${MAX_VIDEO_MB} MB.`);
-  return storage.save(file, folder);
-}
-
-/** Igual que saveVideoFromForm, para fotos. */
-export async function saveImageFromForm(form: FormData, field: string, folder: string) {
-  const file = form.get(field);
-  if (!(file instanceof File) || file.size === 0) return null;
-  if (!ALLOWED_IMAGE_TYPES.includes(file.type)) throw new Error("La foto debe ser JPG, PNG o WebP.");
-  if (file.size > MAX_IMAGE_MB * 1024 * 1024) throw new Error(`La foto no puede pasar de ${MAX_IMAGE_MB} MB.`);
-  return storage.save(file, folder);
+/** Lee las fotos de un formulario y comprueba que son válidas (sin guardarlas todavía). */
+export function photosFromForm(form: FormData, field: string, max: number) {
+  const files = form.getAll(field).filter((f): f is File => f instanceof File && f.size > 0);
+  if (files.length > max) throw new Error(`Puedes subir como máximo ${max} fotos.`);
+  for (const file of files) {
+    if (!ALLOWED_IMAGE_TYPES.includes(file.type)) throw new Error("Las fotos deben ser JPG, PNG o WebP.");
+    if (file.size > MAX_IMAGE_MB * 1024 * 1024) throw new Error(`Cada foto puede ocupar como máximo ${MAX_IMAGE_MB} MB.`);
+  }
+  return files;
 }

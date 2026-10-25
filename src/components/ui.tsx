@@ -19,7 +19,7 @@ export function PageHeader({
         </Link>
       )}
       <div className="flex items-start justify-between gap-3">
-        <div>
+        <div className="min-w-0">
           <h1 className="h1">{title}</h1>
           {subtitle && <div className="muted mt-0.5">{subtitle}</div>}
         </div>
@@ -29,27 +29,15 @@ export function PageHeader({
   );
 }
 
-/** Bloque desplegable (para formularios que no hace falta ver siempre). */
-export function Collapsible({ title, children, open }: { title: string; children: React.ReactNode; open?: boolean }) {
-  return (
-    <details className="card group" open={open}>
-      <summary className="flex cursor-pointer list-none items-center justify-between font-semibold">
-        {title}
-        <span className="text-gray-400 transition group-open:rotate-180">▾</span>
-      </summary>
-      <div className="mt-4">{children}</div>
-    </details>
-  );
-}
-
 export function Empty({ children }: { children: React.ReactNode }) {
-  return <p className="rounded-2xl border border-dashed border-gray-300 p-6 text-center text-gray-500">{children}</p>;
+  return <div className="rounded-2xl border border-dashed border-gray-300 p-6 text-center text-gray-500">{children}</div>;
 }
 
-export function StatusBadge({ done }: { done: boolean }) {
-  return done ? (
-    <span className="badge bg-brand-100 text-brand-700">Hecho</span>
-  ) : (
-    <span className="badge bg-amber-100 text-amber-800">Pendiente</span>
+/** Mensaje verde de confirmación (p. ej. "Anuncio publicado"). */
+export function Notice({ children }: { children: React.ReactNode }) {
+  return (
+    <p role="status" className="mb-4 rounded-xl bg-brand-50 px-3 py-2 text-sm font-medium text-brand-700">
+      {children}
+    </p>
   );
 }

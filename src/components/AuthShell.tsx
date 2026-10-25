@@ -1,16 +1,11 @@
-import Link from "next/link";
-import { Brand } from "./Brand";
-
-export function AuthShell({ title, children }: { title: string; children: React.ReactNode }) {
+export function AuthShell({ title, intro, children }: { title: string; intro?: string; children: React.ReactNode }) {
   return (
-    <main className="mx-auto flex min-h-dvh max-w-md flex-col justify-center px-4 py-10">
-      <Link href="/" className="mb-6 flex justify-center">
-        <Brand size="lg" />
-      </Link>
+    <div className="mx-auto max-w-md py-2 md:py-8">
       <div className="card p-6">
-        <h1 className="h1 mb-5">{title}</h1>
-        {children}
+        <h1 className="h1">{title}</h1>
+        {intro && <p className="muted mt-1">{intro}</p>}
+        <div className="mt-5">{children}</div>
       </div>
-    </main>
+    </div>
   );
 }

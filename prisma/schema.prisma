@@ -4,8 +4,15 @@
 //   1. Cambia provider = "sqlite" por provider = "postgresql".
 //   2. Cambia DATABASE_URL en .env.
 //   3. Borra la carpeta prisma/migrations y ejecuta: npx prisma migrate dev --name inicio
-// Por eso aquí no se usa nada exclusivo de SQLite: los "tipos" (rol, estado...)
+// Por eso aquí no se usa nada exclusivo de SQLite: los "tipos" (estado, categoría...)
 // se guardan como texto y sus valores permitidos están en src/lib/constants.ts.
+//
+// Preparado para crecer (sin tocar lo que ya hay, solo añadiendo tablas):
+//   - Pagos: los precios van en céntimos (priceCents); se añadiría una tabla Order/Payment.
+//   - Chat: cada ListingInterest es el inicio de una conversación; se añadiría Message.
+//   - Avisos: se añadiría Notification (userId, tipo, leído).
+//   - Zona de adiestradores: se añadirían Dog, Assignment, TrainingSession... enlazadas a User
+//     (el código de la primera versión está en la rama claude/dog-training-platform-vnggro).
 
 generator client {
   provider = "prisma-client-js"
@@ -16,175 +23,22 @@ datasource db {
   url      = env("DATABASE_URL")
 }
 
-// Persona que entra en la app: adiestrador o cliente.
+// Socio del club.
 model User {
   id           String   @id @default(cuid())
   email        String   @unique
   passwordHash String
   name         String
   phone        String?
-  role         String // "TRAINER" | "CLIENT"
+  location     String? // zona o ciudad
+  accountType  String   @default("INDIVIDUAL") // "INDIVIDUAL" (particular) | "PROFESSIONAL"
   createdAt    DateTime @default(now())
 
-  // Solo adiestradores: código que dan a sus clientes para registrarse.
-  inviteCode String? @unique
-
-  // Solo clientes: su adiestrador.
-  trainerId String?
-  trainer   User?   @relation("TrainerClients", fields: [trainerId], references: [id], onDelete: SetNull)
-  clients   User[]  @relation("TrainerClients")
-
-  dogs              Dog[]             @relation("DogOwner")
-  exercises         Exercise[]
-  assignmentsGiven  Assignment[]      @relation("AssignmentTrainer")
-  trainingSessions  TrainingSession[]
-  homePractices     HomePractice[]
-  contents          Content[]
-  listings          Listing[]
-  interests         ListingInterest[]
-  recommendations   Recommendation[]
-
-  @@index([trainerId])
+  listings  Listing[]
+  interests ListingInterest[]
 }
 
-// Ficha del perro.
-model Dog {
-  id        String    @id @default(cuid())
-  name      String
-  breed     String?
-  sex       String? // "MALE" | "FEMALE"
-  birthDate DateTime?
-  weightKg  Float?
-  notes     String? // carácter, salud, objetivos...
-  createdAt DateTime  @default(now())
-
-  ownerId String
-  owner   User   @relation("DogOwner", fields: [ownerId], references: [id], onDelete: Cascade)
-
-  assignments      Assignment[]
-  trainingSessions TrainingSession[]
-  homePractices    HomePractice[]
-  recommendations  Recommendation[]
-
-  @@index([ownerId])
-}
-
-// Biblioteca de ejercicios de cada adiestrador (explicación + vídeo).
-model Exercise {
-  id          String   @id @default(cuid())
-  title       String
-  description String
-  videoKey    String? // vídeo subido (ver src/lib/storage.ts)
-  videoUrl    String? // o un enlace externo (YouTube, etc.)
-  createdAt   DateTime @default(now())
-
-  trainerId String
-  trainer   User   @relation(fields: [trainerId], references: [id], onDelete: Cascade)
-
-  assignments      Assignment[]
-  sessionExercises SessionExercise[]
-  homePractices    HomePractice[]
-
-  @@index([trainerId])
-}
-
-// Deber: un ejercicio que el adiestrador manda practicar a un perro.
-model Assignment {
-  id           String    @id @default(cuid())
-  instructions String? // indicaciones concretas para esta familia
-  targetReps   Int? // repeticiones recomendadas por día
-  dueDate      DateTime?
-  status       String    @default("PENDING") // "PENDING" | "DONE"
-  completedAt  DateTime?
-  createdAt    DateTime  @default(now())
-
-  dogId      String
-  dog        Dog      @relation(fields: [dogId], references: [id], onDelete: Cascade)
-  exerciseId String
-  exercise   Exercise @relation(fields: [exerciseId], references: [id], onDelete: Cascade)
-  trainerId  String
-  trainer    User     @relation("AssignmentTrainer", fields: [trainerId], references: [id], onDelete: Cascade)
-
-  homePractices HomePractice[]
-
-  @@index([dogId])
-  @@index([trainerId])
-}
-
-// Sesión de entrenamiento con el adiestrador.
-model TrainingSession {
-  id        String   @id @default(cuid())
-  date      DateTime
-  notes     String?
-  createdAt DateTime @default(now())
-
-  dogId     String
-  dog       Dog    @relation(fields: [dogId], references: [id], onDelete: Cascade)
-  trainerId String
-  trainer   User   @relation(fields: [trainerId], references: [id], onDelete: Cascade)
-
-  exercises SessionExercise[]
-
-  @@index([dogId])
-}
-
-// Resultado de un ejercicio dentro de una sesión.
-model SessionExercise {
-  id        String  @id @default(cuid())
-  successes Int     @default(0)
-  failures  Int     @default(0)
-  notes     String?
-
-  sessionId  String
-  session    TrainingSession @relation(fields: [sessionId], references: [id], onDelete: Cascade)
-  exerciseId String
-  exercise   Exercise        @relation(fields: [exerciseId], references: [id], onDelete: Cascade)
-
-  @@index([sessionId])
-  @@index([exerciseId])
-}
-
-// Práctica que la familia registra en casa.
-model HomePractice {
-  id          String   @id @default(cuid())
-  date        DateTime
-  repetitions Int      @default(0)
-  successes   Int      @default(0)
-  notes       String?
-  createdAt   DateTime @default(now())
-
-  dogId        String
-  dog          Dog         @relation(fields: [dogId], references: [id], onDelete: Cascade)
-  clientId     String
-  client       User        @relation(fields: [clientId], references: [id], onDelete: Cascade)
-  exerciseId   String
-  exercise     Exercise    @relation(fields: [exerciseId], references: [id], onDelete: Cascade)
-  assignmentId String?
-  assignment   Assignment? @relation(fields: [assignmentId], references: [id], onDelete: SetNull)
-
-  @@index([dogId])
-  @@index([assignmentId])
-}
-
-// Contenido formativo general (artículos y vídeos).
-// isPremium + priceCents quedan preparados para cobrar más adelante.
-model Content {
-  id         String   @id @default(cuid())
-  title      String
-  summary    String
-  body       String
-  videoKey   String?
-  videoUrl   String?
-  isPremium  Boolean  @default(false)
-  priceCents Int? // precio en céntimos (p. ej. 499 = 4,99 €)
-  published  Boolean  @default(true)
-  createdAt  DateTime @default(now())
-
-  authorId String
-  author   User   @relation(fields: [authorId], references: [id], onDelete: Cascade)
-}
-
-// Anuncio de material (nuevo o de segunda mano) que publica cualquier socio.
+// Anuncio de material (nuevo o de segunda mano), curso o servicio.
 model Listing {
   id          String   @id @default(cuid())
   title       String
@@ -193,22 +47,40 @@ model Listing {
   condition   String // "NEW" | "USED"
   priceCents  Int? // vacío si es gratis
   isFree      Boolean  @default(false)
-  location    String? // zona o ciudad
-  photoKey    String? // foto subida (ver src/lib/storage.ts)
+  location    String // zona o ciudad
   status      String   @default("ACTIVE") // "ACTIVE" | "RESERVED" | "SOLD"
   createdAt   DateTime @default(now())
+  updatedAt   DateTime @updatedAt
+
+  // Texto en minúsculas y sin tildes para buscar igual en SQLite y en PostgreSQL
+  // (lo rellena src/lib/search.ts al guardar).
+  searchText     String @default("")
+  locationSearch String @default("")
 
   sellerId String
   seller   User   @relation(fields: [sellerId], references: [id], onDelete: Cascade)
 
-  interests       ListingInterest[]
-  recommendations Recommendation[]
+  photos    ListingPhoto[]
+  interests ListingInterest[]
 
   @@index([sellerId])
-  @@index([status])
+  @@index([status, createdAt])
+  @@index([category])
 }
 
-// «Me interesa»: un socio avisa al anunciante.
+// Foto de un anuncio. "key" es la clave en el almacenamiento (ver src/lib/storage.ts).
+model ListingPhoto {
+  id       String @id @default(cuid())
+  key      String
+  position Int    @default(0) // la de menor número es la portada
+
+  listingId String
+  listing   Listing @relation(fields: [listingId], references: [id], onDelete: Cascade)
+
+  @@index([listingId, position])
+}
+
+// «Me interesa»: un socio avisa al anunciante (y ambos ven los datos de contacto del otro).
 model ListingInterest {
   id        String   @id @default(cuid())
   message   String?
@@ -220,20 +92,5 @@ model ListingInterest {
   user      User    @relation(fields: [userId], references: [id], onDelete: Cascade)
 
   @@unique([listingId, userId])
-}
-
-// El adiestrador recomienda un anuncio para un perro concreto.
-model Recommendation {
-  id        String   @id @default(cuid())
-  note      String?
-  createdAt DateTime @default(now())
-
-  trainerId String
-  trainer   User    @relation(fields: [trainerId], references: [id], onDelete: Cascade)
-  dogId     String
-  dog       Dog     @relation(fields: [dogId], references: [id], onDelete: Cascade)
-  listingId String
-  listing   Listing @relation(fields: [listingId], references: [id], onDelete: Cascade)
-
-  @@index([dogId])
+  @@index([userId])
 }

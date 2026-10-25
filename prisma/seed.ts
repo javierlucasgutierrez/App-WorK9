@@ -1,29 +1,21 @@
-// Datos de ejemplo (ficticios) para probar la app.
-// Se cargan con: npm run db:seed   (borra los datos que haya y vuelve a crearlos)
+// Datos de ejemplo (ficticios) para probar la app: 3 socios y 8 anuncios.
+// Se cargan con: npm run db:seed   (¡borra los datos que haya y vuelve a crearlos!)
 
 import { PrismaClient } from "@prisma/client";
 import bcrypt from "bcryptjs";
 import { copyFile, mkdir } from "fs/promises";
 import path from "path";
+import { searchFields } from "../src/lib/search";
 
 const db = new PrismaClient();
 const PASSWORD = "demo1234";
 
-const daysAgo = (n: number) => {
+const daysAgo = (n: number, hour = 19) => {
   const d = new Date();
   d.setDate(d.getDate() - n);
-  d.setHours(18, 0, 0, 0);
+  d.setHours(hour, 0, 0, 0);
   return d;
 };
-
-// Copia el vídeo de ejemplo a la carpeta de vídeos y devuelve su clave.
-async function sampleVideo(name: string) {
-  const root = process.env.STORAGE_LOCAL_DIR ?? "./uploads";
-  const key = `ejemplos/${name}.mp4`;
-  await mkdir(path.join(root, "ejemplos"), { recursive: true });
-  await copyFile(path.join(__dirname, "seed-assets", "ejemplo.mp4"), path.join(root, key));
-  return key;
-}
 
 // Copia una foto de ejemplo a la carpeta de archivos y devuelve su clave.
 async function samplePhoto(name: string) {
@@ -34,322 +26,205 @@ async function samplePhoto(name: string) {
   return key;
 }
 
+type Sample = {
+  seller: string;
+  photos: string[];
+  title: string;
+  description: string;
+  category: string;
+  condition: "NEW" | "USED";
+  price: number | null; // en euros; null = «Lo regalo»
+  location: string;
+  status?: "ACTIVE" | "RESERVED" | "SOLD";
+  days: number; // hace cuántos días se publicó
+  interests?: { from: string; message?: string; days: number }[];
+};
+
 async function main() {
   // Vaciar (en orden para respetar las relaciones)
-  await db.recommendation.deleteMany();
   await db.listingInterest.deleteMany();
+  await db.listingPhoto.deleteMany();
   await db.listing.deleteMany();
-  await db.homePractice.deleteMany();
-  await db.sessionExercise.deleteMany();
-  await db.trainingSession.deleteMany();
-  await db.assignment.deleteMany();
-  await db.exercise.deleteMany();
-  await db.content.deleteMany();
-  await db.dog.deleteMany();
   await db.user.deleteMany();
 
   const passwordHash = await bcrypt.hash(PASSWORD, 10);
-
-  const trainer = await db.user.create({
-    data: {
-      email: "adiestrador@demo.com",
-      name: "Marta Ruiz",
-      phone: "600 000 001",
-      role: "TRAINER",
-      inviteCode: "MARTA-1234",
-      passwordHash,
-    },
-  });
-
-  const ana = await db.user.create({
-    data: {
-      email: "ana@demo.com",
-      name: "Ana García",
-      phone: "600 000 002",
-      role: "CLIENT",
-      trainerId: trainer.id,
-      passwordHash,
-    },
-  });
-  const pedro = await db.user.create({
-    data: {
-      email: "pedro@demo.com",
-      name: "Pedro López",
-      phone: "600 000 003",
-      role: "CLIENT",
-      trainerId: trainer.id,
-      passwordHash,
-    },
-  });
-
-  const luna = await db.dog.create({
-    data: {
-      name: "Luna",
-      breed: "Border Collie",
-      sex: "FEMALE",
-      birthDate: new Date("2024-03-10"),
-      weightKg: 16,
-      notes: "Muy enérgica. Se distrae con otros perros. Objetivo: llamada fiable en el parque.",
-      ownerId: ana.id,
-    },
-  });
-  const toby = await db.dog.create({
-    data: {
-      name: "Toby",
-      breed: "Mestizo",
-      sex: "MALE",
-      birthDate: new Date("2019-06-01"),
-      weightKg: 9,
-      notes: "Tranquilo, algo miedoso con ruidos fuertes.",
-      ownerId: ana.id,
-    },
-  });
-  const rocky = await db.dog.create({
-    data: {
-      name: "Rocky",
-      breed: "Pastor Alemán",
-      sex: "MALE",
-      birthDate: new Date("2025-01-20"),
-      weightKg: 28,
-      notes: "Cachorro grande. Tira mucho de la correa. Objetivo: paseo relajado.",
-      ownerId: pedro.id,
-    },
-  });
-
-  const video = await sampleVideo("ejercicio");
-  const ex = async (title: string, description: string, withVideo = true) =>
-    db.exercise.create({
-      data: { title, description, trainerId: trainer.id, videoKey: withVideo ? video : null },
-    });
-
-  const sentado = await ex(
-    "Sentado",
-    "1. Con un premio en la mano, llévalo por encima de su cabeza.\n2. Cuando apoye el culete, di «¡Bien!» y premia.\n3. Cuando lo haga fácil, añade la palabra «Sienta» justo antes del gesto.",
-  );
-  const llamada = await ex(
-    "Llamada (Ven)",
-    "1. Empieza en casa, sin distracciones.\n2. Di su nombre + «Ven» con voz alegre y agáchate.\n3. Premia mucho cuando llegue. Nunca le llames para algo que no le guste.",
-  );
-  const correa = await ex(
-    "Paseo sin tirar",
-    "1. Si la correa se tensa, para y espera.\n2. Cuando la correa se afloje, di «Sí» y avanza.\n3. Premia a la altura de tu pierna cuando camine a tu lado.",
-  );
-  const quieto = await ex(
-    "Quieto",
-    "1. Pídele sentado.\n2. Muestra la palma, di «Quieto» y espera 2 segundos.\n3. Vuelve, premia y libera con «Libre». Aumenta el tiempo poco a poco.",
-    false,
-  );
-
-  // Deberes
-  const deberLlamada = await db.assignment.create({
-    data: {
-      dogId: luna.id,
-      exerciseId: llamada.id,
-      trainerId: trainer.id,
-      instructions: "3 veces al día en casa. Esta semana, nada de practicar en el parque todavía.",
-      targetReps: 10,
-      dueDate: daysAgo(-5),
-    },
-  });
-  await db.assignment.create({
-    data: {
-      dogId: luna.id,
-      exerciseId: sentado.id,
-      trainerId: trainer.id,
-      instructions: "Ya lo hace bien: practícalo antes de ponerle el comedero.",
-      targetReps: 5,
-      status: "DONE",
-      completedAt: daysAgo(2),
-    },
-  });
-  await db.assignment.create({
-    data: {
-      dogId: toby.id,
-      exerciseId: quieto.id,
-      trainerId: trainer.id,
-      instructions: "Sesiones cortas de 2 minutos, en un sitio tranquilo.",
-      targetReps: 5,
-      dueDate: daysAgo(-7),
-    },
-  });
-  const deberCorrea = await db.assignment.create({
-    data: {
-      dogId: rocky.id,
-      exerciseId: correa.id,
-      trainerId: trainer.id,
-      instructions: "Paseos de 10 minutos por una calle tranquila antes del paseo largo.",
-      targetReps: 15,
-      dueDate: daysAgo(-3),
-    },
-  });
-
-  // Sesiones con el adiestrador (con mejora progresiva)
-  const session = (dogId: string, date: Date, notes: string, items: [string, number, number][]) =>
-    db.trainingSession.create({
+  const users = {
+    laura: await db.user.create({
       data: {
-        dogId,
-        trainerId: trainer.id,
-        date,
-        notes,
-        exercises: {
-          create: items.map(([exerciseId, successes, failures]) => ({ exerciseId, successes, failures })),
-        },
+        email: "laura@demo.com",
+        name: "Laura Martín",
+        phone: "611 234 567",
+        location: "Valencia",
+        accountType: "PROFESSIONAL",
+        passwordHash,
+        createdAt: daysAgo(210),
+      },
+    }),
+    sergio: await db.user.create({
+      data: {
+        email: "sergio@demo.com",
+        name: "Sergio Ortega",
+        phone: "622 345 678",
+        location: "Madrid",
+        accountType: "INDIVIDUAL",
+        passwordHash,
+        createdAt: daysAgo(95),
+      },
+    }),
+    nerea: await db.user.create({
+      data: {
+        email: "nerea@demo.com",
+        name: "Nerea Ibáñez",
+        phone: "633 456 789",
+        location: "Bilbao",
+        accountType: "INDIVIDUAL",
+        passwordHash,
+        createdAt: daysAgo(40),
+      },
+    }),
+  };
+  type Who = keyof typeof users;
+
+  const samples: Sample[] = [
+    {
+      seller: "sergio",
+      photos: ["manga-1", "manga-2"],
+      title: "Manga de mordida de yute para cachorro y perro joven",
+      description:
+        "Manga blanda de yute con asa interior, ideal para iniciar la presa en cachorros y perros jóvenes.\n" +
+        "La he usado unos meses con mi malinois y ya hemos pasado a manga dura. Costuras perfectas, sin roturas.",
+      category: "Mordida",
+      condition: "USED",
+      price: 45,
+      location: "Madrid",
+      days: 1,
+      interests: [{ from: "nerea", message: "¡Hola! ¿Sigue disponible? Me vendría genial para mi cachorra. ¿La envías?", days: 0 }],
+    },
+    {
+      seller: "laura",
+      photos: ["traje-1", "traje-2"],
+      title: "Traje de protección completo talla L (chaqueta + pantalón)",
+      description:
+        "Traje de figurante completo, talla L. Chaqueta y pantalón con refuerzos en brazos y piernas.\n" +
+        "Lo usamos en el club para entrenamientos; está en buen estado, con el desgaste normal en las zonas de mordida.",
+      category: "Mordida",
+      condition: "USED",
+      price: 380,
+      location: "Valencia",
+      status: "RESERVED",
+      days: 4,
+      interests: [{ from: "sergio", message: "Me interesa mucho. ¿Podría probármelo el sábado?", days: 3 }],
+    },
+    {
+      seller: "nerea",
+      photos: ["kit-1", "kit-2"],
+      title: "Kit de olores de iniciación a la detección (6 latas + tubos)",
+      description:
+        "Kit nuevo, sin estrenar: 6 latas perforadas numeradas y tubos de cristal para impregnar.\n" +
+        "Perfecto para empezar con la detección deportiva o en casa. Lo compré repetido.",
+      category: "Detección",
+      condition: "NEW",
+      price: 60,
+      location: "Bilbao",
+      days: 2,
+    },
+    {
+      seller: "sergio",
+      photos: ["linea-1"],
+      title: "Línea larga de rastreo de biotano, 15 m",
+      description:
+        "Línea de biotano de 15 metros, no absorbe agua ni se ensucia. Mosquetón de latón.\nUn año de uso, sin cortes.",
+      category: "Rastreo",
+      condition: "USED",
+      price: 18,
+      location: "Alcalá de Henares (Madrid)",
+      days: 6,
+    },
+    {
+      seller: "nerea",
+      photos: ["arnes-1"],
+      title: "Arnés de rastreo acolchado, talla M",
+      description:
+        "Arnés en Y acolchado para rastreo, talla M (pecho 60-75 cm). A mi perra se le ha quedado pequeño.\n" +
+        "Lo regalo a quien lo vaya a usar de verdad 🙂",
+      category: "Arneses",
+      condition: "USED",
+      price: null,
+      location: "Bilbao",
+      days: 3,
+      interests: [{ from: "laura", message: "Para una perra joven del club que empieza en rastreo. ¡Gracias!", days: 2 }],
+    },
+    {
+      seller: "laura",
+      photos: ["rulos-1", "rulos-2"],
+      title: "Lote de rulos de yute y pelotas con cuerda",
+      description:
+        "Lote nuevo: 2 rulos de yute (uno con asa) y 2 pelotas macizas con cuerda.\nSe pueden vender por separado, pregúntame.",
+      category: "Motivadores",
+      condition: "NEW",
+      price: 25,
+      location: "Valencia",
+      days: 8,
+    },
+    {
+      seller: "sergio",
+      photos: ["jaula-1", "jaula-2"],
+      title: "Jaula de aluminio para coche, 2 puertas (91 cm)",
+      description:
+        "Jaula de aluminio doble para maletero, 91 cm de ancho, con bandeja de goma y ventilación.\n" +
+        "Cambio de coche y ya no me cabe. Recogida en mano en Madrid.",
+      category: "Transporte",
+      condition: "USED",
+      price: 290,
+      location: "Madrid",
+      days: 12,
+    },
+    {
+      seller: "laura",
+      photos: ["curso-1"],
+      title: "Seminario de figurante: iniciación a la mordida (2 días)",
+      description:
+        "Seminario práctico para quien quiere empezar como figurante: teoría, presentación de la manga, " +
+        "seguridad y trabajo con perros reales.\nPlazas limitadas (8). Incluye material de protección durante el curso.",
+      category: "Cursos y servicios",
+      condition: "NEW",
+      price: 120,
+      location: "Valencia",
+      days: 5,
+      interests: [{ from: "sergio", days: 4 }],
+    },
+  ];
+
+  for (const s of samples) {
+    const data = {
+      title: s.title,
+      description: s.description,
+      category: s.category,
+      condition: s.condition,
+      isFree: s.price == null,
+      priceCents: s.price == null ? null : s.price * 100,
+      location: s.location,
+    };
+    const listing = await db.listing.create({
+      data: {
+        ...data,
+        ...searchFields(data),
+        status: s.status ?? "ACTIVE",
+        createdAt: daysAgo(s.days),
+        sellerId: users[s.seller as Who].id,
       },
     });
-
-  await session(luna.id, daysAgo(21), "Primera sesión. Mucha energía, cuesta que se centre.", [
-    [sentado.id, 5, 5],
-    [llamada.id, 3, 7],
-  ]);
-  await session(luna.id, daysAgo(14), "Mejor atención. La llamada con distracciones aún falla.", [
-    [sentado.id, 8, 2],
-    [llamada.id, 5, 5],
-  ]);
-  await session(luna.id, daysAgo(7), "Gran avance en la llamada en interior.", [
-    [sentado.id, 9, 1],
-    [llamada.id, 7, 3],
-  ]);
-  await session(toby.id, daysAgo(10), "Trabajamos confianza. Se asustó con una moto.", [[quieto.id, 4, 6]]);
-  await session(rocky.id, daysAgo(12), "Tira mucho al principio, luego se calma.", [[correa.id, 4, 8]]);
-  await session(rocky.id, daysAgo(5), "Mejora clara en los primeros 5 minutos.", [[correa.id, 8, 4]]);
-
-  // Prácticas en casa
-  for (const [n, reps, ok] of [
-    [6, 10, 6],
-    [4, 10, 7],
-    [2, 12, 10],
-    [1, 10, 9],
-  ]) {
-    await db.homePractice.create({
-      data: {
-        dogId: luna.id,
-        clientId: ana.id,
-        exerciseId: llamada.id,
-        assignmentId: deberLlamada.id,
-        date: daysAgo(n),
-        repetitions: reps,
-        successes: ok,
-      },
-    });
+    for (const [position, name] of s.photos.entries()) {
+      await db.listingPhoto.create({ data: { listingId: listing.id, key: await samplePhoto(name), position } });
+    }
+    for (const i of s.interests ?? []) {
+      await db.listingInterest.create({
+        data: { listingId: listing.id, userId: users[i.from as Who].id, message: i.message, createdAt: daysAgo(i.days, 21) },
+      });
+    }
   }
-  await db.homePractice.create({
-    data: {
-      dogId: rocky.id,
-      clientId: pedro.id,
-      exerciseId: correa.id,
-      assignmentId: deberCorrea.id,
-      date: daysAgo(2),
-      repetitions: 15,
-      successes: 9,
-      notes: "Se cruzó un gato y ahí se perdió todo, ¡pero el resto genial!",
-    },
-  });
 
-  // Contenido formativo
-  await db.content.create({
-    data: {
-      authorId: trainer.id,
-      title: "Cómo usar los premios correctamente",
-      summary: "Cuándo, cuánto y cómo premiar para que tu perro aprenda más rápido.",
-      body: "El premio tiene que llegar justo después de la conducta (en 1-2 segundos).\n\nUsa premios pequeños y muy apetecibles para ejercicios difíciles, y pienso para los fáciles.\n\nPoco a poco, alterna premios de comida con caricias, juego y libertad.",
-      videoKey: video,
-    },
-  });
-  await db.content.create({
-    data: {
-      authorId: trainer.id,
-      title: "Señales de estrés en el perro",
-      summary: "Aprende a reconocer cuándo tu perro lo está pasando mal.",
-      body: "Bostezos fuera de contexto, lamerse el hocico, girar la cabeza, cola baja, orejas hacia atrás...\n\nSi ves varias a la vez, aleja al perro de lo que le preocupa y dale espacio.",
-    },
-  });
-  await db.content.create({
-    data: {
-      authorId: trainer.id,
-      title: "Curso: cachorro feliz (de 2 a 6 meses)",
-      summary: "Socialización, mordisqueo, pis en casa y primeras órdenes.",
-      body: "Contenido completo del curso (próximamente de pago).",
-      isPremium: true,
-      priceCents: 999,
-    },
-  });
-
-  // Material de perro de trabajo (anuncios entre socios, nuevo y de segunda mano)
-  const listing = async (
-    sellerId: string,
-    photo: string,
-    data: { title: string; description: string; category: string; condition: "NEW" | "USED"; priceCents?: number; location: string },
-  ) =>
-    db.listing.create({
-      data: { ...data, sellerId, isFree: data.priceCents == null, photoKey: await samplePhoto(photo) },
-    });
-
-  const arnes = await listing(trainer.id, "arnes", {
-    title: "Arnés de rastreo acolchado",
-    description: "Arnés en Y con anilla dorsal, acolchado en el pecho. Tallas M y L. Lo uso en mis cursos de rastreo.",
-    category: "Arneses",
-    condition: "NEW",
-    priceCents: 4500,
-    location: "Madrid",
-  });
-  await listing(trainer.id, "manga", {
-    title: "Manga de mordida de yute (nivel intermedio)",
-    description: "Manga de yute con funda intercambiable. Ideal para perros jóvenes que ya han pasado del rulo.",
-    category: "Mordida",
-    condition: "NEW",
-    priceCents: 8900,
-    location: "Madrid",
-  });
-  await listing(trainer.id, "kit", {
-    title: "Kit de olores para detección (5 latas)",
-    description: "Cinco latas con tapa perforada y soporte. Para iniciación a la detección con olores neutros.",
-    category: "Detección",
-    condition: "NEW",
-    priceCents: 3500,
-    location: "Madrid",
-  });
-  const traje = await listing(pedro.id, "traje", {
-    title: "Traje de figurante completo talla L",
-    description: "Chaqueta y pantalón. Dos temporadas de uso, costuras revisadas y sin roturas.",
-    category: "Mordida",
-    condition: "USED",
-    priceCents: 32000,
-    location: "Getafe",
-  });
-  await listing(ana.id, "jaula", {
-    title: "Jaula de aluminio para coche (2 perros)",
-    description: "Doble puerta con cierre y ventilación lateral. Medidas: 90 × 80 × 70 cm. Algún rasguño, nada más.",
-    category: "Transporte",
-    condition: "USED",
-    priceCents: 25000,
-    location: "Alcobendas",
-  });
-  await listing(ana.id, "bocado", {
-    title: "Bocado de yute (pack de 2)",
-    description: "Usados en pocas sesiones. Buenos para cachorros.",
-    category: "Mordida",
-    condition: "USED",
-    priceCents: 1200,
-    location: "Alcobendas",
-  });
-  await listing(pedro.id, "correa", {
-    title: "Línea de rastreo de 10 m (biothane)",
-    description: "No absorbe agua y no se enreda. Algo gastada, pero funciona perfecta. ¡Os la regalo!",
-    category: "Rastreo",
-    condition: "USED",
-    location: "Getafe",
-  });
-
-  await db.listingInterest.create({
-    data: { listingId: traje.id, userId: trainer.id, message: "Hola Pedro, ¿me lo dejas probar este fin de semana?" },
-  });
-  await db.recommendation.create({
-    data: { trainerId: trainer.id, dogId: rocky.id, listingId: arnes.id, note: "Para empezar con el rastreo en el parque." },
-  });
-
-  console.log("✔ Datos de ejemplo creados. Contraseña de todos los usuarios:", PASSWORD);
-  console.log("  Adiestradora: adiestrador@demo.com  (código de invitación MARTA-1234)");
-  console.log("  Clientes:     ana@demo.com (Luna y Toby) · pedro@demo.com (Rocky)");
+  console.log(`✔ Datos de ejemplo creados. Socios: laura@demo.com, sergio@demo.com, nerea@demo.com (contraseña: ${PASSWORD})`);
 }
 
 main()

@@ -1,13 +1,11 @@
 import { SignJWT, jwtVerify } from "jose";
-import type { Role } from "./constants";
 
 // Token de sesión firmado que se guarda en una cookie.
-// Este archivo no usa la base de datos para poder usarse también en el middleware.
 
 export const SESSION_COOKIE = "k9club_session";
 export const SESSION_DAYS = 30;
 
-export type SessionPayload = { userId: string; role: Role; name: string };
+export type SessionPayload = { userId: string; name: string };
 
 function secret() {
   const value = process.env.AUTH_SECRET;

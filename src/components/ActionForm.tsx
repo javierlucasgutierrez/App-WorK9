@@ -55,11 +55,19 @@ export function ActionForm({
   );
 }
 
-export function SubmitButton({ children, className = "btn w-full" }: { children: React.ReactNode; className?: string }) {
+export function SubmitButton({
+  children,
+  className = "btn w-full",
+  pendingText = "Guardando…",
+}: {
+  children: React.ReactNode;
+  className?: string;
+  pendingText?: string;
+}) {
   const pending = useContext(PendingContext);
   return (
     <button type="submit" disabled={pending} className={className}>
-      {pending ? "Guardando…" : children}
+      {pending ? pendingText : children}
     </button>
   );
 }

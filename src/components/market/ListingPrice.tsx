@@ -3,23 +3,25 @@ import { formatPrice } from "@/lib/format";
 
 type L = { isFree: boolean; priceCents: number | null; condition: string; status: string };
 
-export function ListingPrice({ listing }: { listing: L }) {
-  return (
-    <span className="font-bold text-brand-700">{listing.isFree ? "Gratis" : formatPrice(listing.priceCents)}</span>
+export function ListingPrice({ listing, className = "" }: { listing: L; className?: string }) {
+  return listing.isFree ? (
+    <span className={`font-extrabold text-jute-700 ${className}`}>🎁 Lo regalo</span>
+  ) : (
+    <span className={`font-extrabold text-brand-800 ${className}`}>{formatPrice(listing.priceCents)}</span>
   );
 }
 
-export function ListingBadges({ listing }: { listing: L }) {
+export function ConditionBadge({ condition }: { condition: string }) {
   return (
-    <span className="flex flex-wrap gap-1">
-      <span className={`badge ${listing.condition === "NEW" ? "bg-sky-100 text-sky-800" : "bg-gray-100 text-gray-700"}`}>
-        {LISTING_CONDITION[listing.condition]}
-      </span>
-      {listing.status !== "ACTIVE" && (
-        <span className={`badge ${listing.status === "SOLD" ? "bg-gray-200 text-gray-600" : "bg-amber-100 text-amber-800"}`}>
-          {LISTING_STATUS[listing.status]}
-        </span>
-      )}
+    <span className={`badge ${condition === "NEW" ? "bg-brand-100 text-brand-700" : "bg-jute-100 text-jute-700"}`}>
+      {LISTING_CONDITION[condition]}
     </span>
   );
+}
+
+export function StatusBadge({ status, showActive = false }: { status: string; showActive?: boolean }) {
+  if (status === "ACTIVE" && !showActive) return null;
+  const color =
+    status === "SOLD" ? "bg-gray-800 text-white" : status === "RESERVED" ? "bg-amber-400 text-amber-950" : "bg-brand-600 text-white";
+  return <span className={`badge ${color}`}>{LISTING_STATUS[status]}</span>;
 }

@@ -1,17 +1,29 @@
 @import "tailwindcss";
 
+/* Colores del club: verde bosque (marca) y tono yute (acento, como las mangas de mordida). */
 @theme {
-  --color-brand-50: #eef7f2;
-  --color-brand-100: #d5ecdf;
-  --color-brand-500: #2f8a5c;
-  --color-brand-600: #25734c;
-  --color-brand-700: #1d5b3c;
+  --color-brand-50: #eef6f0;
+  --color-brand-100: #d4eadb;
+  --color-brand-200: #a9d3b7;
+  --color-brand-500: #2f7d52;
+  --color-brand-600: #256742;
+  --color-brand-700: #1d5135;
+  --color-brand-800: #163d29;
+  --color-brand-900: #0f2a1c;
+  --color-jute-50: #fbf6ec;
+  --color-jute-100: #f4e6c8;
+  --color-jute-200: #e9cf98;
+  --color-jute-400: #d2a24c;
+  --color-jute-600: #a8742a;
+  --color-jute-700: #85591f;
+  --color-sand: #f6f3ec;
 }
 
 body {
-  background: #f6f7f5;
-  color: #1c1f1d;
+  background: var(--color-sand);
+  color: #1f231f;
   font-family: system-ui, -apple-system, "Segoe UI", Roboto, sans-serif;
+  -webkit-tap-highlight-color: transparent;
 }
 
 @layer components {
@@ -25,22 +37,25 @@ body {
     @apply w-full rounded-xl border border-gray-300 bg-white px-3 py-2.5 text-base outline-none focus:border-brand-500 focus:ring-2 focus:ring-brand-100;
   }
   .btn {
-    @apply inline-flex items-center justify-center gap-2 rounded-xl bg-brand-600 px-4 py-2.5 font-semibold text-white transition hover:bg-brand-700 disabled:opacity-60;
+    @apply inline-flex min-h-11 items-center justify-center gap-2 rounded-xl bg-brand-600 px-4 py-2.5 font-semibold text-white transition hover:bg-brand-700 active:scale-[0.98] disabled:opacity-60;
+  }
+  .btn-accent {
+    @apply inline-flex min-h-11 items-center justify-center gap-2 rounded-xl bg-jute-400 px-4 py-2.5 font-semibold text-brand-900 transition hover:bg-jute-200 active:scale-[0.98] disabled:opacity-60;
   }
   .btn-secondary {
-    @apply inline-flex items-center justify-center gap-2 rounded-xl border border-gray-300 bg-white px-4 py-2.5 font-semibold text-gray-800 transition hover:bg-gray-50;
+    @apply inline-flex min-h-11 items-center justify-center gap-2 rounded-xl border border-gray-300 bg-white px-4 py-2.5 font-semibold text-gray-800 transition hover:bg-gray-50 active:scale-[0.98];
   }
   .btn-danger {
-    @apply inline-flex items-center justify-center gap-2 rounded-xl border border-red-200 bg-white px-3 py-2 text-sm font-semibold text-red-700 hover:bg-red-50;
+    @apply inline-flex min-h-11 items-center justify-center gap-2 rounded-xl border border-red-200 bg-white px-3 py-2 text-sm font-semibold text-red-700 hover:bg-red-50;
   }
   .link {
     @apply font-medium text-brand-600 underline-offset-2 hover:underline;
   }
   .h1 {
-    @apply text-2xl font-bold;
+    @apply text-2xl font-bold tracking-tight text-brand-900;
   }
   .h2 {
-    @apply text-lg font-semibold;
+    @apply text-lg font-semibold text-brand-900;
   }
   .muted {
     @apply text-sm text-gray-500;
@@ -48,4 +63,18 @@ body {
   .badge {
     @apply inline-block rounded-full px-2 py-0.5 text-xs font-semibold;
   }
+  .chip {
+    @apply whitespace-nowrap rounded-full border border-gray-300 bg-white px-3 py-1.5 text-sm font-medium text-gray-700;
+  }
+  .chip-active {
+    @apply border-brand-600 bg-brand-600 text-white;
+  }
+}
+
+/* Barra horizontal deslizable sin barra de desplazamiento visible (chips, fotos). */
+.no-scrollbar {
+  scrollbar-width: none;
+}
+.no-scrollbar::-webkit-scrollbar {
+  display: none;
 }

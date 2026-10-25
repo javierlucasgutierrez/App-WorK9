@@ -1,9 +1,11 @@
 import type { NextConfig } from "next";
 
 const nextConfig: NextConfig = {
+  // Oculta el botón de desarrollo de Next.js (tapaba la barra de navegación en el móvil).
+  devIndicators: false,
   experimental: {
-    // Permite subir vídeos desde los formularios (hasta 200 MB).
-    serverActions: { bodySizeLimit: "200mb" },
+    // Permite subir varias fotos a la vez desde los formularios.
+    serverActions: { bodySizeLimit: "70mb" },
   },
 };
 
