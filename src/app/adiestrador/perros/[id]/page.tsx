@@ -1,11 +1,13 @@
 import Link from "next/link";
 import { notFound } from "next/navigation";
-import { createAssignment, deleteAssignment, updateDog } from "@/app/actions/trainer";
+import { createAssignment, deleteAssignment, deleteSession, updateDog } from "@/app/actions/trainer";
 import { ActionForm, SubmitButton } from "@/components/ActionForm";
 import { AssignmentSummary } from "@/components/AssignmentCard";
 import { ConfirmButton } from "@/components/ConfirmButton";
 import { DogFields } from "@/components/DogFields";
+import { DogProgress } from "@/components/DogProgress";
 import { Field, TextArea } from "@/components/Field";
+import { SessionList } from "@/components/SessionList";
 import { Collapsible, Empty, PageHeader } from "@/components/ui";
 import { getTrainerDog } from "@/lib/access";
 import { requireTrainer } from "@/lib/auth";
@@ -36,6 +38,11 @@ export default async function TrainerDogPage({ params }: { params: Promise<{ id:
         subtitle={[dog.breed, dog.sex && DOG_SEX[dog.sex], age(dog.birthDate), dog.weightKg && `${dog.weightKg} kg`]
           .filter(Boolean)
           .join(" · ")}
+        action={
+          <Link href={`/adiestrador/perros/${dog.id}/sesion`} className="btn shrink-0">
+            + Sesión
+          </Link>
+        }
       />
 
       {dog.notes && <p className="card mb-4 whitespace-pre-line text-sm">{dog.notes}</p>}
@@ -49,7 +56,11 @@ export default async function TrainerDogPage({ params }: { params: Promise<{ id:
         </Collapsible>
       </div>
 
-      <section className="space-y-3">
+      <div className="mb-6">
+        <DogProgress dogId={dog.id} />
+      </div>
+
+      <section className="mb-6 space-y-3">
         <h2 className="h2">Deberes</h2>
         <Collapsible title="+ Mandar deber">
           {exercises.length === 0 ? (
@@ -94,6 +105,18 @@ export default async function TrainerDogPage({ params }: { params: Promise<{ id:
             </AssignmentSummary>
           ))
         )}
+      </section>
+
+      <section id="sesiones" className="space-y-3">
+        <h2 className="h2">Sesiones</h2>
+        <SessionList
+          dogId={dog.id}
+          renderActions={(sessionId) => (
+            <form action={deleteSession.bind(null, sessionId)} className="text-right">
+              <ConfirmButton message="¿Borrar esta sesión?">Borrar</ConfirmButton>
+            </form>
+          )}
+        />
       </section>
     </>
   );

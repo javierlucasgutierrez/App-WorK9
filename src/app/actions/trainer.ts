@@ -168,3 +168,47 @@ export async function deleteAssignment(assignmentId: string) {
   await db.assignment.delete({ where: { id: assignmentId } });
   revalidatePath(`/adiestrador/perros/${assignment.dogId}`);
 }
+
+// ---------- Sesiones de entrenamiento ----------
+
+export async function createSession(dogId: string, _: FormState, form: FormData): Promise<FormState> {
+  const trainer = await requireTrainer();
+  if (!(await getTrainerDog(trainer.id, dogId))) return NOT_FOUND;
+  const date = parseInputDate(form.get("date"));
+  if (!date) return { error: "Pon la fecha de la sesión." };
+
+  // Cada fila del formulario es un ejercicio: los campos se repiten en el mismo orden.
+  const ids = form.getAll("exerciseId").map(String);
+  const successes = form.getAll("successes").map((v) => Math.max(0, Math.round(Number(v) || 0)));
+  const failures = form.getAll("failures").map((v) => Math.max(0, Math.round(Number(v) || 0)));
+  const notes = form.getAll("exerciseNotes").map((v) => String(v).trim() || null);
+
+  const valid = new Set(
+    (await db.exercise.findMany({ where: { trainerId: trainer.id, id: { in: ids } }, select: { id: true } })).map(
+      (e) => e.id,
+    ),
+  );
+  const rows = ids
+    .map((exerciseId, i) => ({ exerciseId, successes: successes[i], failures: failures[i], notes: notes[i] }))
+    .filter((r) => valid.has(r.exerciseId));
+  if (rows.length === 0) return { error: "Añade al menos un ejercicio." };
+
+  await db.trainingSession.create({
+    data: {
+      dogId,
+      trainerId: trainer.id,
+      date,
+      notes: optionalText(form, "notes"),
+      exercises: { create: rows },
+    },
+  });
+  redirect(`/adiestrador/perros/${dogId}#sesiones`);
+}
+
+export async function deleteSession(sessionId: string) {
+  const trainer = await requireTrainer();
+  const session = await db.trainingSession.findFirst({ where: { id: sessionId, trainerId: trainer.id } });
+  if (!session) return;
+  await db.trainingSession.delete({ where: { id: sessionId } });
+  revalidatePath(`/adiestrador/perros/${session.dogId}`);
+}
