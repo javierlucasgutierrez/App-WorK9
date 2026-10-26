@@ -16,7 +16,7 @@ interface Mailer {
   send(mail: Mail): Promise<void>;
 }
 
-const FROM = () => process.env.MAIL_FROM ?? "MercaK9 <hola@mercak9.es>";
+const FROM = () => process.env.MAIL_FROM ?? "Canueve K9 <hola@canueve.es>";
 export const OUTBOX_DIR = path.resolve("correos");
 
 class ConsoleMailer implements Mailer {
@@ -53,12 +53,13 @@ export function html(mail: Mail) {
     .map((p) => `<p style="margin:0 0 14px">${escapeHtml(p).replace(/\n/g, "<br>")}</p>`)
     .join("");
   const button = mail.link
-    ? `<p style="margin:22px 0"><a href="${escapeHtml(mail.link.url)}" style="background:#256742;color:#fff;padding:12px 20px;border-radius:10px;text-decoration:none;font-weight:600">${escapeHtml(mail.link.label)}</a></p>`
+    ? `<p style="margin:22px 0"><a href="${escapeHtml(mail.link.url)}" style="background:#8f5f3d;color:#fff;padding:12px 20px;border-radius:10px;text-decoration:none;font-weight:600">${escapeHtml(mail.link.label)}</a></p>`
     : "";
   return `<div style="font-family:system-ui,sans-serif;max-width:520px;margin:auto;color:#1f231f">
-<p style="font-size:20px;font-weight:800;color:#163d29;margin:0 0 18px">Merca<span style="color:#a8742a">K9</span></p>
+<p style="font-size:13px;font-weight:800;letter-spacing:1px;color:#1c1c1e;margin:0">MARKET</p>
+<p style="font-size:22px;font-weight:800;color:#8f5f3d;margin:0 0 18px">CANUEVE <span style="color:#1c1c1e">K9</span></p>
 ${paragraphs}${button}
-<p style="font-size:12px;color:#6b6f68;margin-top:28px">MercaK9 · Conecta, aprende y comparte con la comunidad canina</p></div>`;
+<p style="font-size:12px;color:#6b6f68;margin-top:28px">Market Canueve K9 · Conecta, compra y comparte con la comunidad del perro de trabajo</p></div>`;
 }
 
 function createMailer(): Mailer {

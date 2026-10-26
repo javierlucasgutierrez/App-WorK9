@@ -15,7 +15,7 @@ export default async function RegisterPage({ searchParams }: { searchParams: Pro
   if (await getUser()) redirect(back);
 
   return (
-    <AuthShell title="Únete a MercaK9" intro="Es gratis. Con tu cuenta puedes publicar anuncios y contactar con otros socios.">
+    <AuthShell title="Únete a Canueve K9" intro="Es gratis. Con tu cuenta puedes publicar anuncios y contactar con otros socios.">
       {googleEnabled() && <GoogleButton back={back} />}
       <ActionForm action={register}>
         <input type="hidden" name="volver" value={back} />

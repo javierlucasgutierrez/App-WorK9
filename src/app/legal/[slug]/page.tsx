@@ -17,7 +17,7 @@ const PAGES: Record<string, { title: string; body: React.ReactNode }> = {
     body: (
       <>
         <p>
-          MercaK9 es un punto de encuentro entre personas del perro de trabajo. Para que funcione, pedimos lo mismo que en
+          Canueve K9 es un punto de encuentro entre personas del perro de trabajo. Para que funcione, pedimos lo mismo que en
           cualquier club: respeto, honestidad y sentido común.
         </p>
         <H>Qué se puede publicar</H>
@@ -28,7 +28,7 @@ const PAGES: Record<string, { title: string; body: React.ReactNode }> = {
         </ul>
         <H>Qué no se puede publicar</H>
         <ul>
-          <li>Animales: MercaK9 no es un sitio para vender, regalar ni cruzar perros.</li>
+          <li>Animales: Canueve K9 no es un sitio para vender, regalar ni cruzar perros.</li>
           <li>Material cuyo uso o venta prohíba la normativa de bienestar animal vigente (estatal o de tu comunidad autónoma).</li>
           <li>Armas, medicamentos, productos falsificados o cualquier cosa ilegal.</li>
           <li>Anuncios engañosos, repetidos o que no sean de material, cursos o servicios.</li>
@@ -43,7 +43,7 @@ const PAGES: Record<string, { title: string; body: React.ReactNode }> = {
         <ul>
           <li>Mejor en mano y en un lugar público. Si hay envío, desconfía de quien pida pagos por adelantado con prisas o por métodos sin protección.</li>
           <li>Revisa bien el material de mordida y de sujeción (costuras, mosquetones, hebillas) antes de usarlo con el perro.</li>
-          <li>MercaK9 pone en contacto a los socios, pero no interviene en los pagos ni en las entregas.</li>
+          <li>Canueve K9 pone en contacto a los socios, pero no interviene en los pagos ni en las entregas.</li>
         </ul>
         <H>Si algo no va bien</H>
         <p>
@@ -63,15 +63,15 @@ const PAGES: Record<string, { title: string; body: React.ReactNode }> = {
           se informa de que esta web ({L.domain}) es de {L.owner}, con NIF {L.taxId} y domicilio en {L.address}. Contacto:{" "}
           {L.email}.
         </p>
-        <H>Qué es MercaK9</H>
+        <H>Qué es Canueve K9</H>
         <p>
-          MercaK9 es una plataforma que permite a sus socios publicar anuncios de material, cursos y servicios relacionados
-          con el perro de trabajo y ponerse en contacto entre ellos. MercaK9 no vende ni compra los artículos anunciados, no
+          Canueve K9 es una plataforma que permite a sus socios publicar anuncios de material, cursos y servicios relacionados
+          con el perro de trabajo y ponerse en contacto entre ellos. Canueve K9 no vende ni compra los artículos anunciados, no
           interviene en los pagos ni en las entregas y no es parte de los acuerdos entre socios.
         </p>
         <H>Responsabilidad sobre los anuncios</H>
         <p>
-          Cada socio es responsable de lo que publica. MercaK9 actúa como servicio de alojamiento de datos y retirará con
+          Cada socio es responsable de lo que publica. Canueve K9 actúa como servicio de alojamiento de datos y retirará con
           diligencia los contenidos ilícitos o contrarios a las normas de la comunidad de los que tenga conocimiento, por
           ejemplo mediante el botón «Denunciar anuncio» o escribiendo a {L.email}.
         </p>
@@ -85,8 +85,8 @@ const PAGES: Record<string, { title: string; body: React.ReactNode }> = {
         </p>
         <H>Propiedad intelectual</H>
         <p>
-          El diseño, el logotipo y los textos propios de MercaK9 pertenecen a su titular. Las fotos y textos de los anuncios
-          son de quien los publica, que autoriza a MercaK9 a mostrarlos en la web mientras el anuncio exista.
+          El diseño, el logotipo y los textos propios de Canueve K9 pertenecen a su titular. Las fotos y textos de los anuncios
+          son de quien los publica, que autoriza a Canueve K9 a mostrarlos en la web mientras el anuncio exista.
         </p>
         <H>Ley aplicable</H>
         <p>Estas condiciones se rigen por la legislación española.</p>
@@ -148,7 +148,7 @@ const PAGES: Record<string, { title: string; body: React.ReactNode }> = {
           petición, puedes reclamar ante la Agencia Española de Protección de Datos (aepd.es).
         </p>
         <H>Edad</H>
-        <p>MercaK9 es para mayores de 18 años.</p>
+        <p>Canueve K9 es para mayores de 18 años.</p>
       </>
     ),
   },
@@ -157,7 +157,7 @@ const PAGES: Record<string, { title: string; body: React.ReactNode }> = {
     body: (
       <>
         <p>
-          MercaK9 solo usa <strong>cookies técnicas</strong>, imprescindibles para que la web funcione. No usamos cookies de
+          Canueve K9 solo usa <strong>cookies técnicas</strong>, imprescindibles para que la web funcione. No usamos cookies de
           publicidad ni de análisis. Por eso no te pedimos permiso con un aviso (art. 22.2 de la LSSI).
         </p>
         <div className="overflow-x-auto">
@@ -171,12 +171,12 @@ const PAGES: Record<string, { title: string; body: React.ReactNode }> = {
             </thead>
             <tbody>
               <tr className="border-b">
-                <td className="py-2 pr-3 font-mono">mercak9_session</td>
+                <td className="py-2 pr-3 font-mono">canueve_session</td>
                 <td className="py-2 pr-3">Mantener tu sesión iniciada</td>
                 <td className="py-2">30 días</td>
               </tr>
               <tr>
-                <td className="py-2 pr-3 font-mono">mercak9_google_state</td>
+                <td className="py-2 pr-3 font-mono">canueve_google_state</td>
                 <td className="py-2 pr-3">Seguridad al entrar con Google</td>
                 <td className="py-2">10 minutos</td>
               </tr>

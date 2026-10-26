@@ -2,7 +2,7 @@ import { SignJWT, jwtVerify } from "jose";
 
 // Token de sesión firmado que se guarda en una cookie.
 
-export const SESSION_COOKIE = "mercak9_session";
+export const SESSION_COOKIE = "canueve_session";
 export const SESSION_DAYS = 30;
 
 export type SessionPayload = { userId: string; name: string };

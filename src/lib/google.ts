@@ -5,7 +5,7 @@ import { appUrl } from "./app-url";
 // Entrar con Google (OAuth 2.0 / OpenID Connect), sin librerías extra.
 // Necesita GOOGLE_CLIENT_ID y GOOGLE_CLIENT_SECRET en .env (se crean en console.cloud.google.com).
 
-export const GOOGLE_STATE_COOKIE = "mercak9_google_state";
+export const GOOGLE_STATE_COOKIE = "canueve_google_state";
 const redirectUri = () => appUrl("/api/auth/google/callback");
 const googleKeys = createRemoteJWKSet(new URL("https://www.googleapis.com/oauth2/v3/certs"));
 

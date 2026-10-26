@@ -5,8 +5,8 @@ export const LEGAL = {
   owner: "[Nombre y apellidos o razón social]",
   taxId: "[NIF]",
   address: "[Dirección postal completa]",
-  email: "[correo de contacto, p. ej. hola@mercak9.es]",
-  domain: "[mercak9.es]",
+  email: "[correo de contacto, p. ej. hola@canueve.es]",
+  domain: "[canueve.es]",
   updated: "26 de octubre de 2026",
 };
 

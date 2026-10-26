@@ -1,6 +1,10 @@
-# 🐾 MercaK9
+# Market Canueve K9
 
-**Conecta · Aprende · Comparte** — Conecta, aprende y comparte con la comunidad canina.
+![Market Canueve K9](marca/logo-vertical.png)
+
+**Conecta · Compra · Comparte** — Conecta, compra y comparte con la comunidad del perro de trabajo.
+
+*Canueve* = **can** + **nueve**: lo mismo que K9.
 
 El mercado del perro de trabajo: material **nuevo y de segunda mano** (mordida, detección, rastreo, arneses, transporte…), creadores y talleres, cursos y servicios, entre particulares y profesionales. Pensada para usarse desde el móvil.
 
@@ -62,6 +66,16 @@ En tu ordenador los correos **no se envían de verdad**: se guardan y se ven en 
    - `ADMIN_EMAILS`: tu correo, para ser administrador.
    - `AUTH_SECRET`: una clave nueva, larga y aleatoria.
 3. Entrar con Google (opcional): crear unas credenciales "OAuth" en console.cloud.google.com con la dirección de vuelta `https://TU-WEB/api/auth/google/callback` y poner `GOOGLE_CLIENT_ID` y `GOOGLE_CLIENT_SECRET` en `.env`. Si están vacíos, el botón no aparece.
+
+## Logo y marca
+En la carpeta `marca/` están todas las versiones del logo, listas para usar:
+- `logo-vertical.svg` / `.png`: el logo completo (escena, nombre y eslogan). Hay versión con fondo transparente.
+- `logo-horizontal.svg`: icono redondo + nombre, para cabeceras y documentos.
+- `icono.svg` e `icono-redes.png`: el icono redondo, para el perfil de redes sociales.
+- Las versiones `-claro` son para fondos oscuros.
+- `original-propuesta.png`: la imagen de partida.
+
+Los `.svg` son vectoriales: se pueden ampliar sin perder calidad (ideales para imprenta, camisetas o pegatinas). La letra es Montserrat (licencia libre).
 
 ## Cómo está hecha (para quien programe)
 

@@ -38,8 +38,8 @@ export async function sendVerificationEmail(user: { id: string; name: string; em
   const token = await createToken(user.id, "VERIFY_EMAIL");
   await sendMail({
     to: user.email,
-    subject: "Confirma tu correo en MercaK9",
-    text: `Hola, ${user.name}:\n\nGracias por unirte a MercaK9. Confirma tu correo para poder publicar anuncios y contactar con otros socios.\n\nEl enlace caduca en 3 días.`,
+    subject: "Confirma tu correo en Canueve K9",
+    text: `Hola, ${user.name}:\n\nGracias por unirte a Canueve K9. Confirma tu correo para poder publicar anuncios y contactar con otros socios.\n\nEl enlace caduca en 3 días.`,
     link: { label: "Confirmar mi correo", url: appUrl(`/verificar/${token}`) },
   });
 }
@@ -48,7 +48,7 @@ export async function sendPasswordResetEmail(user: { id: string; name: string; e
   const token = await createToken(user.id, "RESET_PASSWORD");
   await sendMail({
     to: user.email,
-    subject: "Elige una contraseña nueva en MercaK9",
+    subject: "Elige una contraseña nueva en Canueve K9",
     text: `Hola, ${user.name}:\n\nHemos recibido una petición para cambiar tu contraseña. Si no has sido tú, ignora este correo: tu contraseña sigue igual.\n\nEl enlace caduca en 1 hora.`,
     link: { label: "Elegir contraseña nueva", url: appUrl(`/recuperar/${token}`) },
   });

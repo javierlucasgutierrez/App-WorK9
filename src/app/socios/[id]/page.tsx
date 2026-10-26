@@ -22,7 +22,7 @@ async function load(id: string) {
 
 export async function generateMetadata({ params }: Props): Promise<Metadata> {
   const member = await load((await params).id);
-  return member ? { title: member.name, description: member.bio ?? `${ACCOUNT_TYPES[member.accountType]} en MercaK9` } : {};
+  return member ? { title: member.name, description: member.bio ?? `${ACCOUNT_TYPES[member.accountType]} en Market Canueve K9` } : {};
 }
 
 // Escaparate público de un socio: sus datos de presentación y todos sus anuncios.

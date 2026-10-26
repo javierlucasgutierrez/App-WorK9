@@ -141,7 +141,7 @@ export default async function ListingPage({ params, searchParams }: Props) {
                   <ul className="divide-y divide-gray-100">
                     {listing.interests.map((i) => (
                       <li key={i.id} className="space-y-2 py-3 first:pt-0 last:pb-0">
-                        <ContactCard person={i.user} subject={`MercaK9: ${listing.title}`} />
+                        <ContactCard person={i.user} subject={`Canueve K9: ${listing.title}`} />
                         {i.message && <p className="rounded-xl bg-gray-50 p-2 text-sm text-gray-700">“{i.message}”</p>}
                         <p className="muted text-xs">{formatDate(i.createdAt)}</p>
                       </li>
@@ -153,7 +153,7 @@ export default async function ListingPage({ params, searchParams }: Props) {
           ) : myInterest ? (
             <section className="card space-y-3 border-brand-200">
               <p className="font-semibold text-brand-700">✅ Le has avisado. Estos son sus datos para que habléis:</p>
-              <ContactCard person={seller} subject={`MercaK9: ${listing.title}`} />
+              <ContactCard person={seller} subject={`Canueve K9: ${listing.title}`} />
               <form action={cancelInterest.bind(null, listing.id)}>
                 <ConfirmButton message="¿Quitar tu interés por este anuncio?" className="btn-secondary w-full text-sm">
                   Ya no me interesa

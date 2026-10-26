@@ -1,27 +1,28 @@
 @import "tailwindcss";
 
-/* Colores del club: verde bosque (marca) y tono yute (acento, como las mangas de mordida). */
+/* Colores del logo: cobre (marca, botones) y negro tinta (cabecera, títulos).
+   "brand" = cobre y tinta; "jute" = tonos cobre claros para acentos y fondos suaves. */
 @theme {
-  --color-brand-50: #eef6f0;
-  --color-brand-100: #d4eadb;
-  --color-brand-200: #a9d3b7;
-  --color-brand-500: #2f7d52;
-  --color-brand-600: #256742;
-  --color-brand-700: #1d5135;
-  --color-brand-800: #163d29;
-  --color-brand-900: #0f2a1c;
-  --color-jute-50: #fbf6ec;
-  --color-jute-100: #f4e6c8;
-  --color-jute-200: #e9cf98;
-  --color-jute-400: #d2a24c;
-  --color-jute-600: #a8742a;
-  --color-jute-700: #85591f;
-  --color-sand: #f6f3ec;
+  --color-brand-50: #f8f1ea;
+  --color-brand-100: #efdfcf;
+  --color-brand-200: #ddbd9c;
+  --color-brand-500: #a46d45;
+  --color-brand-600: #8f5f3d;
+  --color-brand-700: #764d31;
+  --color-brand-800: #1c1c1e;
+  --color-brand-900: #141416;
+  --color-jute-50: #faf5ee;
+  --color-jute-100: #f1e2cf;
+  --color-jute-200: #e6c7a3;
+  --color-jute-400: #c98a52;
+  --color-jute-600: #a46d45;
+  --color-jute-700: #7a4f30;
+  --color-sand: #f7f5f0;
 }
 
 body {
   background: var(--color-sand);
-  color: #1f231f;
+  color: #1c1c1e;
   font-family: system-ui, -apple-system, "Segoe UI", Roboto, sans-serif;
   -webkit-tap-highlight-color: transparent;
 }

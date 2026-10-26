@@ -11,7 +11,7 @@ const NOTICES: Record<string, string> = {
   "verificado=1": "✅ ¡Correo confirmado! Ya puedes publicar y contactar con otros socios.",
   "verificado=caducado": "Ese enlace de confirmación ha caducado o ya se ha usado. Si aún no has confirmado tu correo, pulsa «Reenviar» en el aviso de arriba.",
   "contrasena=1": "✅ Contraseña cambiada. Ya has entrado con tu cuenta.",
-  "cuenta-borrada=1": "Tu cuenta y tus anuncios se han borrado. ¡Gracias por haber formado parte de MercaK9!",
+  "cuenta-borrada=1": "Tu cuenta y tus anuncios se han borrado. ¡Gracias por haber formado parte de Canueve K9!",
 };
 
 export default async function Home({ searchParams }: { searchParams: Promise<Record<string, string>> }) {
@@ -39,31 +39,35 @@ export default async function Home({ searchParams }: { searchParams: Promise<Rec
   return (
     <div className="space-y-8">
       {notice && <Notice>{notice}</Notice>}
-      <section className="-mx-4 -mt-5 bg-brand-800 px-4 pb-8 pt-6 text-white sm:mx-0 sm:mt-0 sm:rounded-3xl sm:px-8 sm:py-10">
-        <p className="text-sm font-semibold uppercase tracking-wider text-jute-200">{BRAND.shortSlogan}</p>
-        <h1 className="mt-2 text-3xl font-extrabold leading-tight sm:text-4xl">
-          El punto de encuentro del <span className="text-jute-400">perro de trabajo</span>
-        </h1>
-        <p className="mt-3 max-w-xl text-white/80">
-          Material nuevo y de segunda mano, creadores y talleres, cursos y servicios. Compra, vende o regala entre guías,
-          figurantes, adiestradores y clubes.
-        </p>
-        <form action="/anuncios" role="search" className="mt-5 flex max-w-xl gap-2">
-          <input
-            name="q"
-            type="search"
-            placeholder="Busca: manga, kit de olores, jaula…"
-            aria-label="Buscar material"
-            className="input border-transparent text-gray-900"
-          />
-          <button className="btn-accent shrink-0" aria-label="Buscar">
-            🔍<span className="hidden sm:inline">Buscar</span>
-          </button>
-        </form>
-        <p className="mt-4 text-sm text-white/70">
-          <strong className="text-white">{listingCount}</strong> anuncios activos · <strong className="text-white">{memberCount}</strong>{" "}
-          socios en el club
-        </p>
+      <section className="-mx-4 -mt-5 bg-brand-800 px-4 pb-8 pt-6 text-white sm:mx-0 sm:mt-0 sm:rounded-3xl sm:px-8 sm:py-10 md:grid md:grid-cols-[1fr_260px] md:items-center md:gap-8">
+        <div>
+          <p className="text-sm font-semibold uppercase tracking-wider text-jute-200">{BRAND.shortSlogan}</p>
+          <h1 className="mt-2 text-3xl font-extrabold leading-tight sm:text-4xl">
+            El punto de encuentro del <span className="text-jute-400">perro de trabajo</span>
+          </h1>
+          <p className="mt-3 max-w-xl text-white/80">
+            Material nuevo y de segunda mano, creadores y talleres, cursos y servicios. Compra, vende o regala entre guías,
+            figurantes, adiestradores y clubes.
+          </p>
+          <form action="/anuncios" role="search" className="mt-5 flex max-w-xl gap-2">
+            <input
+              name="q"
+              type="search"
+              placeholder="Busca: manga, kit de olores, jaula…"
+              aria-label="Buscar material"
+              className="input border-transparent text-gray-900"
+            />
+            <button className="btn-accent shrink-0" aria-label="Buscar">
+              🔍<span className="hidden sm:inline">Buscar</span>
+            </button>
+          </form>
+          <p className="mt-4 text-sm text-white/70">
+            <strong className="text-white">{listingCount}</strong> anuncios activos · <strong className="text-white">{memberCount}</strong>{" "}
+            socios en el club
+          </p>
+        </div>
+        {/* eslint-disable-next-line @next/next/no-img-element -- logo SVG de la propia web */}
+        <img src="/marca/logo-vertical-claro.svg" alt="" className="hidden w-full md:block" />
       </section>
 
       <section>

@@ -20,7 +20,7 @@ export function SiteShell({
     <div className="flex min-h-dvh flex-col pb-[calc(4.5rem+env(safe-area-inset-bottom))] md:pb-0">
       <header className="sticky top-0 z-20 bg-brand-800 text-white shadow-sm">
         <div className="mx-auto flex max-w-5xl items-center justify-between gap-3 px-4 py-2.5">
-          <Link href="/" aria-label="MercaK9, inicio">
+          <Link href="/" aria-label="Market Canueve K9, inicio">
             <Brand />
           </Link>
           <NavLinks loggedIn={!!user} variant="top" />
@@ -39,7 +39,7 @@ export function SiteShell({
       {user && !user.verified && <VerifyBanner outbox={outbox} />}
       <main className="mx-auto w-full max-w-5xl flex-1 px-4 py-5">{children}</main>
       <footer className="border-t border-black/5 px-4 py-6 text-center text-xs text-gray-500 md:text-sm">
-        <p>MercaK9 · Conecta, aprende y comparte con la comunidad canina</p>
+        <p>Market Canueve K9 · Conecta, compra y comparte con la comunidad del perro de trabajo</p>
         <nav className="mt-2 flex flex-wrap justify-center gap-x-4 gap-y-1">
           <Link href="/legal/normas" className="hover:underline">Normas</Link>
           <Link href="/legal/aviso-legal" className="hover:underline">Aviso legal</Link>
