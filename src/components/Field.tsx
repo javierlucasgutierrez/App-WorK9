@@ -33,11 +33,13 @@ export function Choice({
   name,
   options,
   defaultValue,
+  hints,
 }: {
   label: string;
   name: string;
   options: [string, string][];
   defaultValue: string;
+  hints?: Record<string, string>;
 }) {
   return (
     <fieldset>
@@ -46,8 +48,9 @@ export function Choice({
         {options.map(([value, text]) => (
           <label key={value} className="cursor-pointer">
             <input type="radio" name={name} value={value} defaultChecked={value === defaultValue} className="peer sr-only" />
-            <span className="block rounded-xl border border-gray-300 bg-white px-3 py-2.5 text-center font-medium peer-checked:border-brand-600 peer-checked:bg-brand-50 peer-checked:text-brand-700 peer-focus-visible:ring-2 peer-focus-visible:ring-brand-200">
+            <span className="flex h-full flex-col justify-center rounded-xl border border-gray-300 bg-white px-2 py-2.5 text-center font-medium leading-tight peer-checked:border-brand-600 peer-checked:bg-brand-50 peer-checked:text-brand-700 peer-focus-visible:ring-2 peer-focus-visible:ring-brand-200">
               {text}
+              {hints?.[value] && <span className="mt-0.5 block text-[11px] font-normal text-gray-500">{hints[value]}</span>}
             </span>
           </label>
         ))}

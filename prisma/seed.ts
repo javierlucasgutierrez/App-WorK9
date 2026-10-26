@@ -1,4 +1,4 @@
-// Datos de ejemplo (ficticios) para probar la app: 3 socios y 8 anuncios.
+// Datos de ejemplo (ficticios) para probar la app: 4 socios y 10 anuncios.
 // Se cargan con: npm run db:seed   (¡borra los datos que haya y vuelve a crearlos!)
 
 import { PrismaClient } from "@prisma/client";
@@ -42,12 +42,16 @@ type Sample = {
 
 async function main() {
   // Vaciar (en orden para respetar las relaciones)
+  await db.report.deleteMany();
+  await db.authToken.deleteMany();
+  await db.rateLimitHit.deleteMany();
   await db.listingInterest.deleteMany();
   await db.listingPhoto.deleteMany();
   await db.listing.deleteMany();
   await db.user.deleteMany();
 
   const passwordHash = await bcrypt.hash(PASSWORD, 10);
+  const emailVerifiedAt = daysAgo(200);
   const users = {
     laura: await db.user.create({
       data: {
@@ -57,7 +61,10 @@ async function main() {
         location: "Valencia",
         accountType: "PROFESSIONAL",
         passwordHash,
+        emailVerifiedAt,
         createdAt: daysAgo(210),
+        bio: "Adiestradora y figurante. Club de trabajo en Valencia: obediencia, IGP y detección.\nOrganizo seminarios de iniciación para guías y figurantes.",
+        instagram: "@laura_k9_valencia",
       },
     }),
     sergio: await db.user.create({
@@ -68,6 +75,7 @@ async function main() {
         location: "Madrid",
         accountType: "INDIVIDUAL",
         passwordHash,
+        emailVerifiedAt,
         createdAt: daysAgo(95),
       },
     }),
@@ -79,7 +87,24 @@ async function main() {
         location: "Bilbao",
         accountType: "INDIVIDUAL",
         passwordHash,
+        emailVerifiedAt,
         createdAt: daysAgo(40),
+      },
+    }),
+    taller: await db.user.create({
+      data: {
+        email: "taller@demo.com",
+        name: "Mordida Artesana",
+        phone: "644 567 890",
+        location: "Zaragoza",
+        accountType: "MAKER",
+        passwordHash,
+        emailVerifiedAt,
+        createdAt: daysAgo(150),
+        bio: "Taller familiar de material de mordida hecho a mano: bocados, mangas y mordedores de yute y cuero.\nTrabajamos por encargo y hacemos envíos a toda España.",
+        website: "https://mordida-artesana.example",
+        instagram: "@mordida.artesana",
+        avatarKey: await samplePhoto("logo-taller"),
       },
     }),
   };
@@ -193,6 +218,31 @@ async function main() {
       days: 5,
       interests: [{ from: "sergio", days: 4 }],
     },
+    {
+      seller: "taller",
+      photos: ["bocado-1"],
+      title: "Bocado de yute cosido a mano (3 tamaños)",
+      description:
+        "Bocado de yute con doble costura y asas de cuerda trenzada. Hecho en nuestro taller.\n" +
+        "Tamaños: cachorro (20 cm), joven (25 cm) y adulto (30 cm). Precio del tamaño adulto; pregunta por los demás.",
+      category: "Mordida",
+      condition: "NEW",
+      price: 35,
+      location: "Zaragoza",
+      days: 0,
+    },
+    {
+      seller: "taller",
+      photos: ["mordedor-1"],
+      title: "Mordedor de cuero con dos asas",
+      description: "Mordedor de cuero curtido con relleno firme y dos asas, ideal para tiro y premio en obediencia.\nHecho a mano. Envío a toda España.",
+      category: "Motivadores",
+      condition: "NEW",
+      price: 28,
+      location: "Zaragoza",
+      days: 9,
+      interests: [{ from: "nerea", message: "¿Lo tenéis en tamaño pequeño para una perra de 20 kg?", days: 1 }],
+    },
   ];
 
   for (const s of samples) {
@@ -224,7 +274,7 @@ async function main() {
     }
   }
 
-  console.log(`✔ Datos de ejemplo creados. Socios: laura@demo.com, sergio@demo.com, nerea@demo.com (contraseña: ${PASSWORD})`);
+  console.log(`✔ Datos de ejemplo creados. Socios: laura@demo.com, sergio@demo.com, nerea@demo.com, taller@demo.com (contraseña: ${PASSWORD})`);
 }
 
 main()

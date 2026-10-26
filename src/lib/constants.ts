@@ -1,6 +1,17 @@
 // Valores permitidos para los campos de texto "tipo" de la base de datos.
 
-export const ACCOUNT_TYPES: Record<string, string> = { INDIVIDUAL: "Particular", PROFESSIONAL: "Profesional" };
+export const ACCOUNT_TYPES: Record<string, string> = {
+  INDIVIDUAL: "Particular",
+  PROFESSIONAL: "Profesional",
+  MAKER: "Creador / taller",
+};
+
+/** Explicación corta de cada tipo de cuenta (se muestra al registrarse). */
+export const ACCOUNT_TYPE_HINTS: Record<string, string> = {
+  INDIVIDUAL: "Guía, deportista o aficionado",
+  PROFESSIONAL: "Adiestrador, figurante, club",
+  MAKER: "Fabricas o vendes material",
+};
 
 // Categorías de material, pensadas para el perro de trabajo.
 export const LISTING_CATEGORIES = [
@@ -48,3 +59,11 @@ export const LISTING_CONDITION: Record<string, string> = { NEW: "Nuevo", USED: "
 export const LISTING_STATUS: Record<string, string> = { ACTIVE: "Disponible", RESERVED: "Reservado", SOLD: "Vendido" };
 
 export const MAX_PHOTOS = 6;
+
+export const REPORT_REASONS: Record<string, string> = {
+  FRAUD: "Parece un engaño o estafa",
+  FORBIDDEN: "Material prohibido o venta de animales",
+  WRONG: "Datos falsos o categoría equivocada",
+  SPAM: "Spam o anuncio repetido",
+  OTHER: "Otro motivo",
+};

@@ -1,23 +1,44 @@
 import Link from "next/link";
 import { ListingGrid } from "@/components/market/ListingCard";
+import { MemberAvatar } from "@/components/MemberAvatar";
+import { Notice } from "@/components/ui";
 import { BRAND } from "@/lib/brand";
-import { LISTING_CATEGORIES, LISTING_CATEGORY_HINTS, LISTING_CATEGORY_ICONS } from "@/lib/constants";
+import { ACCOUNT_TYPES, LISTING_CATEGORIES, LISTING_CATEGORY_HINTS, LISTING_CATEGORY_ICONS } from "@/lib/constants";
 import { db } from "@/lib/db";
-import { cardSelect } from "@/lib/listings";
+import { cardSelect, publicListing } from "@/lib/listings";
 
-export default async function Home() {
-  const visible = { status: { not: "SOLD" } };
-  const [latest, gifts, listingCount, memberCount, byCategory] = await Promise.all([
+const NOTICES: Record<string, string> = {
+  "verificado=1": "✅ ¡Correo confirmado! Ya puedes publicar y contactar con otros socios.",
+  "verificado=caducado": "Ese enlace de confirmación ha caducado o ya se ha usado. Si aún no has confirmado tu correo, pulsa «Reenviar» en el aviso de arriba.",
+  "contrasena=1": "✅ Contraseña cambiada. Ya has entrado con tu cuenta.",
+  "cuenta-borrada=1": "Tu cuenta y tus anuncios se han borrado. ¡Gracias por haber formado parte de MercaK9!",
+};
+
+export default async function Home({ searchParams }: { searchParams: Promise<Record<string, string>> }) {
+  const params = await searchParams;
+  const notice = Object.entries(params)
+    .map(([k, v]) => NOTICES[`${k}=${v}`])
+    .find(Boolean);
+  const visible = { ...publicListing, status: { not: "SOLD" } };
+  const [latest, gifts, listingCount, memberCount, byCategory, makers] = await Promise.all([
     db.listing.findMany({ where: visible, orderBy: { createdAt: "desc" }, take: 8, select: cardSelect }),
     db.listing.findMany({ where: { ...visible, isFree: true }, orderBy: { createdAt: "desc" }, take: 4, select: cardSelect }),
     db.listing.count({ where: visible }),
-    db.user.count(),
+    db.user.count({ where: { blockedAt: null } }),
     db.listing.groupBy({ by: ["category"], where: visible, _count: true }),
+    // Escaparates: creadores, talleres y profesionales con anuncios activos.
+    db.user.findMany({
+      where: { blockedAt: null, accountType: { in: ["MAKER", "PROFESSIONAL"] }, listings: { some: visible } },
+      include: { _count: { select: { listings: { where: visible } } } },
+      orderBy: [{ accountType: "asc" }, { createdAt: "asc" }],
+      take: 8,
+    }),
   ]);
   const countFor = (c: string) => byCategory.find((b) => b.category === c)?._count ?? 0;
 
   return (
     <div className="space-y-8">
+      {notice && <Notice>{notice}</Notice>}
       <section className="-mx-4 -mt-5 bg-brand-800 px-4 pb-8 pt-6 text-white sm:mx-0 sm:mt-0 sm:rounded-3xl sm:px-8 sm:py-10">
         <p className="text-sm font-semibold uppercase tracking-wider text-jute-200">{BRAND.shortSlogan}</p>
         <h1 className="mt-2 text-3xl font-extrabold leading-tight sm:text-4xl">
@@ -60,7 +81,11 @@ export default async function Home() {
                 <span className="min-w-0">
                   <span className="block font-semibold leading-tight text-brand-900">{c}</span>
                   <span className="line-clamp-2 text-xs text-gray-500">{LISTING_CATEGORY_HINTS[c]}</span>
-                  {countFor(c) > 0 && <span className="mt-0.5 block text-xs font-semibold text-brand-600">{countFor(c)} anuncios</span>}
+                  {countFor(c) > 0 && (
+                    <span className="mt-0.5 block text-xs font-semibold text-brand-600">
+                      {countFor(c)} {countFor(c) === 1 ? "anuncio" : "anuncios"}
+                    </span>
+                  )}
                 </span>
               </Link>
             </li>
@@ -77,6 +102,32 @@ export default async function Home() {
         </div>
         <ListingGrid listings={latest} />
       </section>
+
+      {makers.length > 0 && (
+        <section>
+          <h2 className="h2">Creadores, talleres y profesionales</h2>
+          <p className="muted mb-3">Material hecho a mano, cursos y servicios de gente del sector.</p>
+          <ul className="no-scrollbar -mx-4 flex gap-3 overflow-x-auto px-4 pb-1">
+            {makers.map((m) => (
+              <li key={m.id} className="w-60 shrink-0">
+                <Link href={`/socios/${m.id}`} className="card flex h-full items-center gap-3 p-3 transition hover:shadow-md">
+                  <MemberAvatar member={m} className="h-12 w-12 text-lg" />
+                  <span className="min-w-0">
+                    <span className="block truncate font-semibold text-brand-900">{m.name}</span>
+                    <span className="block text-xs text-gray-500">
+                      {ACCOUNT_TYPES[m.accountType]}
+                      {m.location && ` · ${m.location}`}
+                    </span>
+                    <span className="block text-xs font-semibold text-brand-600">
+                      {m._count.listings} {m._count.listings === 1 ? "anuncio" : "anuncios"}
+                    </span>
+                  </span>
+                </Link>
+              </li>
+            ))}
+          </ul>
+        </section>
+      )}
 
       {gifts.length > 0 && (
         <section className="rounded-3xl bg-jute-50 p-4 sm:p-6">

@@ -10,7 +10,8 @@
 // Preparado para crecer (sin tocar lo que ya hay, solo añadiendo tablas):
 //   - Pagos: los precios van en céntimos (priceCents); se añadiría una tabla Order/Payment.
 //   - Chat: cada ListingInterest es el inicio de una conversación; se añadiría Message.
-//   - Avisos: se añadiría Notification (userId, tipo, leído).
+//   - Avisos: ya se manda un correo al anunciante con cada «Me interesa»; para avisos dentro de
+//     la web se añadiría Notification (userId, tipo, leído).
 //   - Zona de adiestradores: se añadirían Dog, Assignment, TrainingSession... enlazadas a User
 //     (el código de la primera versión está en la rama claude/dog-training-platform-vnggro).
 
@@ -25,17 +26,45 @@ datasource db {
 
 // Socio del club.
 model User {
-  id           String   @id @default(cuid())
-  email        String   @unique
-  passwordHash String
+  id           String    @id @default(cuid())
+  email        String    @unique
+  passwordHash String? // vacío si solo entra con Google
+  googleId     String?   @unique
   name         String
   phone        String?
   location     String? // zona o ciudad
-  accountType  String   @default("INDIVIDUAL") // "INDIVIDUAL" (particular) | "PROFESSIONAL"
-  createdAt    DateTime @default(now())
+  accountType  String    @default("INDIVIDUAL") // ver ACCOUNT_TYPES en src/lib/constants.ts
+  role         String    @default("USER") // "USER" | "ADMIN"
+  createdAt    DateTime  @default(now())
+  emailVerifiedAt DateTime?
+  blockedAt    DateTime? // bloqueado por moderación: no puede entrar y sus anuncios no se ven
+
+  // Escaparate (sobre todo para profesionales, creadores y talleres)
+  bio       String?
+  website   String?
+  instagram String?
+  avatarKey String? // logo o foto (ver src/lib/storage.ts)
 
   listings  Listing[]
   interests ListingInterest[]
+  tokens    AuthToken[]
+  reports   Report[]
+}
+
+// Enlaces de un solo uso que se mandan por correo (confirmar correo, nueva contraseña).
+// Solo se guarda la huella del código, nunca el código.
+model AuthToken {
+  id        String    @id @default(cuid())
+  kind      String // "VERIFY_EMAIL" | "RESET_PASSWORD"
+  tokenHash String    @unique
+  expiresAt DateTime
+  usedAt    DateTime?
+  createdAt DateTime  @default(now())
+
+  userId String
+  user   User   @relation(fields: [userId], references: [id], onDelete: Cascade)
+
+  @@index([userId, kind])
 }
 
 // Anuncio de material (nuevo o de segunda mano), curso o servicio.
@@ -49,6 +78,7 @@ model Listing {
   isFree      Boolean  @default(false)
   location    String // zona o ciudad
   status      String   @default("ACTIVE") // "ACTIVE" | "RESERVED" | "SOLD"
+  hiddenAt    DateTime? // oculto por moderación
   createdAt   DateTime @default(now())
   updatedAt   DateTime @updatedAt
 
@@ -62,6 +92,7 @@ model Listing {
 
   photos    ListingPhoto[]
   interests ListingInterest[]
+  reports   Report[]
 
   @@index([sellerId])
   @@index([status, createdAt])
@@ -93,4 +124,29 @@ model ListingInterest {
 
   @@unique([listingId, userId])
   @@index([userId])
+}
+
+// Denuncia de un anuncio (la revisa un administrador en /admin).
+model Report {
+  id         String    @id @default(cuid())
+  reason     String // ver REPORT_REASONS en src/lib/constants.ts
+  details    String?
+  createdAt  DateTime  @default(now())
+  resolvedAt DateTime?
+
+  listingId  String
+  listing    Listing @relation(fields: [listingId], references: [id], onDelete: Cascade)
+  reporterId String
+  reporter   User    @relation(fields: [reporterId], references: [id], onDelete: Cascade)
+
+  @@index([resolvedAt])
+}
+
+// Registro de intentos para frenar abusos (registros masivos, spam...). Ver src/lib/rate-limit.ts.
+model RateLimitHit {
+  id        String   @id @default(cuid())
+  key       String
+  createdAt DateTime @default(now())
+
+  @@index([key, createdAt])
 }

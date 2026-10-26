@@ -1,18 +1,20 @@
 import type { Metadata } from "next";
 import Link from "next/link";
 import { notFound } from "next/navigation";
-import { cancelInterest, sendInterest, setListingStatus } from "@/app/actions/listings";
+import { cancelInterest, sendInterest, setListingHidden, setListingStatus, setUserBlocked } from "@/app/actions/listings";
 import { ActionForm, SubmitButton } from "@/components/ActionForm";
 import { ConfirmButton } from "@/components/ConfirmButton";
 import { ContactCard } from "@/components/market/ContactCard";
 import { ListingGallery } from "@/components/market/ListingGallery";
 import { ConditionBadge, ListingPrice, StatusBadge } from "@/components/market/ListingPrice";
-import { Avatar } from "@/components/SiteShell";
+import { ReportForm } from "@/components/market/ReportForm";
+import { MemberAvatar } from "@/components/MemberAvatar";
 import { Notice } from "@/components/ui";
-import { getUser, loginUrl } from "@/lib/auth";
+import { getUser, isAdmin, loginUrl } from "@/lib/auth";
 import { ACCOUNT_TYPES, LISTING_CATEGORY_ICONS, LISTING_STATUS } from "@/lib/constants";
 import { db } from "@/lib/db";
 import { fileUrl } from "@/lib/files";
+import { formatPrice } from "@/lib/format";
 import { formatDate, formatMonth, timeAgo } from "@/lib/format";
 
 type Props = { params: Promise<{ id: string }>; searchParams: Promise<{ publicado?: string; guardado?: string }> };
@@ -28,9 +30,17 @@ async function load(id: string) {
   });
 }
 
+// Título, texto y foto que se ven al compartir el anuncio (WhatsApp, redes...).
 export async function generateMetadata({ params }: Props): Promise<Metadata> {
-  const listing = await db.listing.findUnique({ where: { id: (await params).id }, select: { title: true } });
-  return { title: listing?.title ?? "Anuncio" };
+  const listing = await db.listing.findUnique({
+    where: { id: (await params).id },
+    include: { photos: { orderBy: { position: "asc" }, take: 1 } },
+  });
+  if (!listing || listing.hiddenAt) return { title: "Anuncio" };
+  const price = listing.isFree ? "Lo regalo" : formatPrice(listing.priceCents);
+  const description = `${price} · ${listing.location} · ${listing.description.slice(0, 140)}`;
+  const images = listing.photos[0] ? [fileUrl(listing.photos[0].key)] : [];
+  return { title: listing.title, description, openGraph: { title: `${listing.title} · ${price}`, description, images } };
 }
 
 export default async function ListingPage({ params, searchParams }: Props) {
@@ -40,6 +50,9 @@ export default async function ListingPage({ params, searchParams }: Props) {
   if (!listing) notFound();
 
   const isOwner = user?.id === listing.sellerId;
+  const admin = isAdmin(user);
+  const hidden = !!(listing.hiddenAt || listing.seller.blockedAt);
+  if (hidden && !isOwner && !admin) notFound();
   const myInterest = user && listing.interests.find((i) => i.userId === user.id);
   const seller = listing.seller;
 
@@ -50,6 +63,11 @@ export default async function ListingPage({ params, searchParams }: Props) {
       </Link>
       {notice.publicado && <Notice>✅ ¡Anuncio publicado! Ya lo puede ver todo el club.</Notice>}
       {notice.guardado && <Notice>✅ Cambios guardados.</Notice>}
+      {hidden && (
+        <p className="mb-4 rounded-xl bg-amber-50 px-3 py-2 text-sm font-medium text-amber-900">
+          🚫 Este anuncio está oculto por moderación y no lo ve nadie más.
+        </p>
+      )}
 
       <div className="md:grid md:grid-cols-[1fr_320px] md:gap-5">
         <div className="space-y-4">
@@ -76,8 +94,8 @@ export default async function ListingPage({ params, searchParams }: Props) {
 
         <aside className="mt-4 space-y-4 md:mt-0">
           {!isOwner && (
-            <section className="card flex items-center gap-3">
-              <Avatar name={seller.name} className="h-12 w-12 text-lg" />
+            <Link href={`/socios/${seller.id}`} className="card flex items-center gap-3 transition hover:shadow-md">
+              <MemberAvatar member={seller} className="h-12 w-12 text-lg" />
               <div className="min-w-0">
                 <p className="font-semibold">{seller.name}</p>
                 <p className="text-sm text-gray-600">
@@ -85,10 +103,11 @@ export default async function ListingPage({ params, searchParams }: Props) {
                   {seller.location && ` · ${seller.location}`}
                 </p>
                 <p className="text-xs text-gray-500">
-                  Socio desde {formatMonth(seller.createdAt)} · {seller._count.listings} anuncios
+                  Socio desde {formatMonth(seller.createdAt)} · {seller._count.listings} {seller._count.listings === 1 ? "anuncio" : "anuncios"}
                 </p>
+                <p className="mt-0.5 text-xs font-semibold text-brand-600">Ver su escaparate →</p>
               </div>
-            </section>
+            </Link>
           )}
 
           {isOwner ? (
@@ -171,6 +190,25 @@ export default async function ListingPage({ params, searchParams }: Props) {
                 <SubmitButton pendingText="Enviando…">🙋 Me interesa</SubmitButton>
                 <p className="muted text-center">Al pulsar, os veréis mutuamente el nombre, correo y teléfono.</p>
               </ActionForm>
+            </section>
+          )}
+
+          {!isOwner && user && <ReportForm listingId={listing.id} />}
+
+          {admin && (
+            <section className="card space-y-2 border-amber-200 bg-amber-50">
+              <h2 className="font-semibold text-amber-900">🛡️ Moderación</h2>
+              <form action={setListingHidden.bind(null, listing.id, !listing.hiddenAt)}>
+                <button className="btn-secondary w-full text-sm">{listing.hiddenAt ? "Volver a mostrar el anuncio" : "Ocultar este anuncio"}</button>
+              </form>
+              {!isOwner && (
+                <form action={setUserBlocked.bind(null, seller.id, !seller.blockedAt)}>
+                  <button className="btn-danger w-full">{seller.blockedAt ? `Desbloquear a ${seller.name}` : `Bloquear a ${seller.name}`}</button>
+                </form>
+              )}
+              <Link href="/admin" className="link block text-center text-sm">
+                Ir al panel de moderación
+              </Link>
             </section>
           )}
         </aside>

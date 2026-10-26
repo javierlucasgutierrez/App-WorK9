@@ -1,8 +1,15 @@
 import { whatsappUrl } from "@/lib/format";
 import { ACCOUNT_TYPES } from "@/lib/constants";
-import { Avatar } from "../SiteShell";
+import { MemberAvatar } from "../MemberAvatar";
 
-type Person = { name: string; email: string; phone: string | null; location?: string | null; accountType?: string };
+type Person = {
+  name: string;
+  email: string;
+  phone: string | null;
+  location?: string | null;
+  accountType?: string;
+  avatarKey?: string | null;
+};
 
 /** Datos de contacto con botones para llamar, escribir por WhatsApp o enviar un correo. */
 export function ContactCard({ person, subject }: { person: Person; subject?: string }) {
@@ -11,7 +18,7 @@ export function ContactCard({ person, subject }: { person: Person; subject?: str
   return (
     <div>
       <div className="flex items-center gap-3">
-        <Avatar name={person.name} className="h-10 w-10 text-base" />
+        <MemberAvatar member={person} className="h-10 w-10 text-base" />
         <div className="min-w-0">
           <p className="font-semibold">{person.name}</p>
           <p className="truncate text-sm text-gray-600">

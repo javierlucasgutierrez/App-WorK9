@@ -15,6 +15,7 @@ type Row = {
   priceCents: number | null;
   condition: string;
   status: string;
+  hiddenAt: Date | null;
   photos: { key: string }[];
 };
 
@@ -27,7 +28,7 @@ function ListingRow({ listing: l, extra }: { listing: Row; extra: React.ReactNod
           <p className="truncate font-semibold">{l.title}</p>
           <p className="flex items-center gap-2">
             <ListingPrice listing={l} className="text-sm" />
-            <StatusBadge status={l.status} showActive />
+            {l.hiddenAt ? <span className="badge bg-red-100 text-red-700">Oculto por moderación</span> : <StatusBadge status={l.status} showActive />}
           </p>
           <div className="text-sm text-gray-600">{extra}</div>
         </div>

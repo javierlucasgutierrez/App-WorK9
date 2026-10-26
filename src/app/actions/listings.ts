@@ -3,10 +3,13 @@
 import { revalidatePath } from "next/cache";
 import { redirect } from "next/navigation";
 import type { FormState } from "@/components/ActionForm";
-import { requireUser } from "@/lib/auth";
-import { LISTING_CATEGORIES, LISTING_STATUS, MAX_PHOTOS } from "@/lib/constants";
+import { isAdmin, requireUser, verificationError } from "@/lib/auth";
+import { appUrl } from "@/lib/app-url";
+import { LISTING_CATEGORIES, LISTING_STATUS, MAX_PHOTOS, REPORT_REASONS } from "@/lib/constants";
 import { db } from "@/lib/db";
 import { optionalNumber, optionalText, text } from "@/lib/forms";
+import { sendMail } from "@/lib/mailer";
+import { allow, TOO_MANY } from "@/lib/rate-limit";
 import { searchFields } from "@/lib/search";
 import { photosFromForm, storage } from "@/lib/storage";
 
@@ -43,9 +46,12 @@ async function addPhotos(listingId: string, files: File[], from: number) {
 
 export async function createListing(_: FormState, form: FormData): Promise<FormState> {
   const user = await requireUser("/publicar");
+  const notVerified = verificationError(user);
+  if (notVerified) return { error: notVerified };
   const data = listingDataFromForm(form);
   const invalid = validate(data);
   if (invalid) return invalid;
+  if (!(await allow(`publish:${user.id}`, 20, 24 * 60))) return { error: TOO_MANY };
   let id: string;
   try {
     const files = photosFromForm(form, "photos", MAX_PHOTOS);
@@ -111,12 +117,29 @@ export async function sendInterest(listingId: string, _: FormState, form: FormDa
   const listing = await db.listing.findUnique({ where: { id: listingId } });
   if (!listing || listing.status === "SOLD") return { error: "Este anuncio ya no está disponible." };
   if (listing.sellerId === user.id) return { error: "Es tu propio anuncio." };
-  const message = optionalText(form, "message");
+  const notVerified = verificationError(user);
+  if (notVerified) return { error: notVerified };
+  if (!(await allow(`interest:${user.id}`, 30, 24 * 60))) return { error: TOO_MANY };
+  const message = optionalText(form, "message")?.slice(0, 1000) ?? null;
+  const existing = await db.listingInterest.findUnique({ where: { listingId_userId: { listingId, userId: user.id } } });
   await db.listingInterest.upsert({
     where: { listingId_userId: { listingId, userId: user.id } },
     create: { listingId, userId: user.id, message },
     update: { message },
   });
+  // Aviso por correo al anunciante (solo la primera vez que esta persona se interesa).
+  const seller = !existing && (await db.user.findUnique({ where: { id: listing.sellerId } }));
+  if (seller) {
+    await sendMail({
+      to: seller.email,
+      subject: `${user.name} está interesado en «${listing.title}»`,
+      text:
+        `Hola, ${seller.name}:\n\n${user.name} ha pulsado «Me interesa» en tu anuncio «${listing.title}».` +
+        (message ? `\n\nTe ha escrito: «${message}»` : "") +
+        `\n\nEn el anuncio tienes su correo${user.phone ? " y su teléfono" : ""} para contactar.`,
+      link: { label: "Ver interesados", url: appUrl(`/anuncios/${listingId}`) },
+    });
+  }
   revalidatePath(`/anuncios/${listingId}`);
   return { ok: "¡Aviso enviado! El anunciante ya puede ver tus datos de contacto." };
 }
@@ -125,4 +148,49 @@ export async function cancelInterest(listingId: string) {
   const user = await requireUser(`/anuncios/${listingId}`);
   await db.listingInterest.deleteMany({ where: { listingId, userId: user.id } });
   revalidatePath(`/anuncios/${listingId}`);
+}
+
+export async function reportListing(listingId: string, _: FormState, form: FormData): Promise<FormState> {
+  const user = await requireUser(`/anuncios/${listingId}`);
+  const reason = text(form, "reason");
+  if (!(reason in REPORT_REASONS)) return { error: "Elige un motivo." };
+  if (!(await allow(`report:${user.id}`, 10, 24 * 60))) return { error: TOO_MANY };
+  const listing = await db.listing.findUnique({ where: { id: listingId } });
+  if (!listing) return { error: "Este anuncio ya no existe." };
+  await db.report.create({
+    data: { listingId, reporterId: user.id, reason, details: optionalText(form, "details")?.slice(0, 1000) ?? null },
+  });
+  return { ok: "Gracias por avisar. Lo revisaremos lo antes posible." };
+}
+
+// ---------- Moderación (solo administradores) ----------
+
+async function requireAdminAction() {
+  const user = await requireUser("/admin");
+  if (!isAdmin(user)) throw new Error("No autorizado");
+  return user;
+}
+
+export async function setListingHidden(listingId: string, hidden: boolean) {
+  await requireAdminAction();
+  await db.listing.update({ where: { id: listingId }, data: { hiddenAt: hidden ? new Date() : null } });
+  if (hidden) await db.report.updateMany({ where: { listingId, resolvedAt: null }, data: { resolvedAt: new Date() } });
+  revalidatePath("/admin");
+  revalidatePath(`/anuncios/${listingId}`);
+}
+
+export async function dismissReport(reportId: string) {
+  await requireAdminAction();
+  await db.report.update({ where: { id: reportId }, data: { resolvedAt: new Date() } });
+  revalidatePath("/admin");
+}
+
+export async function setUserBlocked(userId: string, blocked: boolean) {
+  const admin = await requireAdminAction();
+  if (userId === admin.id) return;
+  await db.user.update({ where: { id: userId }, data: { blockedAt: blocked ? new Date() : null } });
+  if (blocked) {
+    await db.report.updateMany({ where: { listing: { sellerId: userId }, resolvedAt: null }, data: { resolvedAt: new Date() } });
+  }
+  revalidatePath("/admin");
 }

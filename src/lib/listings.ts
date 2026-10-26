@@ -20,6 +20,9 @@ export const SORT_OPTIONS = [
   ["caro", "Más caros"],
 ] as const;
 
+/** Anuncios que puede ver cualquiera: ni ocultos por moderación ni de cuentas bloqueadas. */
+export const publicListing = { hiddenAt: null, seller: { blockedAt: null } } satisfies Prisma.ListingWhereInput;
+
 /** Lo que se pide a la base de datos para pintar una tarjeta de anuncio. */
 export const cardSelect = {
   id: true,
@@ -34,7 +37,7 @@ export const cardSelect = {
 
 export async function searchListings(f: Filters) {
   // Los vendidos no salen en el buscador (sí en «Mis anuncios»).
-  const where: Prisma.ListingWhereInput = { status: { not: "SOLD" } };
+  const where: Prisma.ListingWhereInput = { ...publicListing, status: { not: "SOLD" } };
   const and: Prisma.ListingWhereInput[] = [];
   for (const word of normalize(f.q ?? "").split(" ").filter(Boolean)) {
     and.push({ searchText: { contains: word } });

@@ -32,7 +32,19 @@ type Existing = { id: string; url: string };
  * Elegir varias fotos (desde el móvil, también hacerlas en ese momento).
  * Envía las nuevas en el campo "photos" y las que se quitan en "removePhoto".
  */
-export function PhotoPicker({ existing = [], max }: { existing?: Existing[]; max: number }) {
+export function PhotoPicker({
+  existing = [],
+  max,
+  name = "photos",
+  removeName = "removePhoto",
+  label,
+}: {
+  existing?: Existing[];
+  max: number;
+  name?: string;
+  removeName?: string;
+  label?: string;
+}) {
   const [removed, setRemoved] = useState<string[]>([]);
   const [added, setAdded] = useState<{ file: File; url: string }[]>([]);
   const [busy, setBusy] = useState(false);
@@ -71,18 +83,22 @@ export function PhotoPicker({ existing = [], max }: { existing?: Existing[]; max
   return (
     <div>
       <p className="label">
-        Fotos <span className="font-normal text-gray-500">({total} de {max} · la primera será la portada)</span>
+        {label ?? (
+          <>
+            Fotos <span className="font-normal text-gray-500">({total} de {max} · la primera será la portada)</span>
+          </>
+        )}
       </p>
-      <input ref={field} type="file" name="photos" multiple className="hidden" aria-hidden tabIndex={-1} />
+      <input ref={field} type="file" name={name} multiple={max > 1} className="hidden" aria-hidden tabIndex={-1} />
       {removed.map((id) => (
-        <input key={id} type="hidden" name="removePhoto" value={id} />
+        <input key={id} type="hidden" name={removeName} value={id} />
       ))}
       <div className="grid grid-cols-3 gap-2 sm:grid-cols-4">
         {tiles.map((t, i) => (
           <div key={t.key} className="relative aspect-square overflow-hidden rounded-xl bg-gray-100">
             {/* eslint-disable-next-line @next/next/no-img-element -- vista previa local */}
             <img src={t.url} alt={`Foto ${i + 1}`} className="h-full w-full object-cover" />
-            {i === 0 && (
+            {i === 0 && max > 1 && (
               <span className="absolute bottom-1 left-1 rounded-full bg-black/60 px-1.5 text-[10px] font-semibold text-white">Portada</span>
             )}
             <button
@@ -98,8 +114,8 @@ export function PhotoPicker({ existing = [], max }: { existing?: Existing[]; max
         {total < max && (
           <label className="flex aspect-square cursor-pointer flex-col items-center justify-center gap-1 rounded-xl border-2 border-dashed border-brand-200 bg-brand-50 text-center text-sm font-semibold text-brand-700">
             <span className="text-2xl">{busy ? "⏳" : "📷"}</span>
-            {busy ? "Preparando…" : "Añadir fotos"}
-            <input type="file" accept="image/*" multiple onChange={onPick} className="sr-only" disabled={busy} />
+            {busy ? "Preparando…" : max > 1 ? "Añadir fotos" : "Añadir foto"}
+            <input type="file" accept="image/*" multiple={max > 1} onChange={onPick} className="sr-only" disabled={busy} />
           </label>
         )}
       </div>
