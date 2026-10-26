@@ -8,7 +8,7 @@ export function SiteShell({ user, children }: { user: { name: string } | null; c
     <div className="flex min-h-dvh flex-col pb-[calc(4.5rem+env(safe-area-inset-bottom))] md:pb-0">
       <header className="sticky top-0 z-20 bg-brand-800 text-white shadow-sm">
         <div className="mx-auto flex max-w-5xl items-center justify-between gap-3 px-4 py-2.5">
-          <Link href="/" aria-label="K9 Club, inicio">
+          <Link href="/" aria-label="MercaK9, inicio">
             <Brand />
           </Link>
           <NavLinks loggedIn={!!user} variant="top" />
@@ -26,7 +26,7 @@ export function SiteShell({ user, children }: { user: { name: string } | null; c
       </header>
       <main className="mx-auto w-full max-w-5xl flex-1 px-4 py-5">{children}</main>
       <footer className="hidden border-t border-black/5 py-6 text-center text-sm text-gray-500 md:block">
-        K9 Club · Conecta, aprende y comparte con la comunidad canina
+        MercaK9 · Conecta, aprende y comparte con la comunidad canina
       </footer>
       <NavLinks loggedIn={!!user} variant="bottom" />
     </div>

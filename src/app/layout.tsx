@@ -4,8 +4,8 @@ import { getUser } from "@/lib/auth";
 import "./globals.css";
 
 export const metadata: Metadata = {
-  title: "K9 Club · Conecta, aprende y comparte",
-  description: "Compra, vende y regala material de perro de trabajo, nuevo y de segunda mano, con la comunidad canina.",
+  title: { default: "MercaK9 · El mercado del perro de trabajo", template: "%s · MercaK9" },
+  description: "Material de perro de trabajo nuevo y de segunda mano, creadores y talleres, cursos y servicios. Conecta, aprende y comparte con la comunidad canina.",
 };
 
 export const viewport: Viewport = {

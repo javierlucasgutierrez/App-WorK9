@@ -7,7 +7,7 @@ import { requireUser } from "@/lib/auth";
 import { ACCOUNT_TYPES } from "@/lib/constants";
 import { formatMonth } from "@/lib/format";
 
-export const metadata = { title: "Mi perfil · K9 Club" };
+export const metadata = { title: "Mi perfil" };
 
 export default async function ProfilePage() {
   const user = await requireUser("/perfil");

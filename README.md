@@ -1,8 +1,8 @@
-# 🐾 K9 Club
+# 🐾 MercaK9
 
 **Conecta · Aprende · Comparte** — Conecta, aprende y comparte con la comunidad canina.
 
-El punto de encuentro del perro de trabajo: compra, vende o regala material **nuevo y de segunda mano** (mordida, detección, rastreo, arneses, transporte, cursos…) entre particulares y profesionales. Pensada para usarse desde el móvil.
+El mercado del perro de trabajo: material **nuevo y de segunda mano** (mordida, detección, rastreo, arneses, transporte…), creadores y talleres, cursos y servicios, entre particulares y profesionales. Pensada para usarse desde el móvil.
 
 Funciona 100 % en local, en tu ordenador, sin cuentas ni servicios externos.
 

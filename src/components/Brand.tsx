@@ -21,7 +21,8 @@ export function Brand({ size = "sm", tone = "dark" }: { size?: "sm" | "lg"; tone
     <span className="inline-flex items-center gap-2 text-left">
       <Logo className={big ? "h-12 w-12" : "h-9 w-9"} />
       <span className={`whitespace-nowrap font-extrabold tracking-tight ${onDark ? "text-white" : "text-brand-800"} ${big ? "text-3xl" : "text-xl"}`}>
-        {BRAND.name}
+        {BRAND.name.replace(/K9$/, "")}
+        <span className={onDark ? "text-jute-400" : "text-jute-600"}>K9</span>
       </span>
       <span
         className={`border-l pl-2 font-medium leading-tight ${

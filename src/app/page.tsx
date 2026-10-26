@@ -24,8 +24,8 @@ export default async function Home() {
           El punto de encuentro del <span className="text-jute-400">perro de trabajo</span>
         </h1>
         <p className="mt-3 max-w-xl text-white/80">
-          Compra, vende o regala material nuevo y de segunda mano entre guías, figurantes, adiestradores y clubes. De la
-          comunidad, para la comunidad.
+          Material nuevo y de segunda mano, creadores y talleres, cursos y servicios. Compra, vende o regala entre guías,
+          figurantes, adiestradores y clubes.
         </p>
         <form action="/anuncios" role="search" className="mt-5 flex max-w-xl gap-2">
           <input

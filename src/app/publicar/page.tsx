@@ -5,7 +5,7 @@ import { PageHeader } from "@/components/ui";
 import { requireUser } from "@/lib/auth";
 import { knownZones } from "@/lib/listings";
 
-export const metadata = { title: "Publicar anuncio · K9 Club" };
+export const metadata = { title: "Publicar anuncio" };
 
 export default async function PublishPage() {
   const user = await requireUser("/publicar");

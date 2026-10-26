@@ -4,7 +4,7 @@ import { Empty } from "@/components/ui";
 import { LISTING_CATEGORIES } from "@/lib/constants";
 import { knownZones, searchListings, SORT_OPTIONS, TYPE_FILTERS, type Filters } from "@/lib/listings";
 
-export const metadata = { title: "Buscar material · K9 Club" };
+export const metadata = { title: "Buscar material" };
 
 export default async function SearchPage({ searchParams }: { searchParams: Promise<Filters> }) {
   const f = await searchParams;

@@ -6,7 +6,7 @@ import { requireUser } from "@/lib/auth";
 import { db } from "@/lib/db";
 import { timeAgo } from "@/lib/format";
 
-export const metadata = { title: "Mis anuncios · K9 Club" };
+export const metadata = { title: "Mis anuncios" };
 
 type Row = {
   id: string;

@@ -9,7 +9,7 @@ import { db } from "@/lib/db";
 import { fileUrl } from "@/lib/files";
 import { knownZones } from "@/lib/listings";
 
-export const metadata = { title: "Editar anuncio · K9 Club" };
+export const metadata = { title: "Editar anuncio" };
 
 export default async function EditListingPage({ params }: { params: Promise<{ id: string }> }) {
   const { id } = await params;
