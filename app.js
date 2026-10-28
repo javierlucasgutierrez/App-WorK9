@@ -15,6 +15,16 @@ const DEFAULTS = {
     { name: 'Otras actividades', type: 'tecnico', items: ['Discos', 'Agility'] },
     { name: 'Trabajo físico', type: 'fisico', items: ['Calentamiento', 'Carrera / resistencia', 'Fuerza', 'Propiocepción', 'Natación', 'Estiramientos'] },
   ],
+  activities: [
+    { name: 'Paseo', icon: 'paseo', groups: ['Trabajo mental', 'Olfato', 'Obediencia'] },
+    { name: 'Obediencia', icon: 'obediencia', groups: ['Obediencia', 'Saltos', 'Trabajo mental'] },
+    { name: 'Defensa', icon: 'defensa', groups: ['Mordida y defensa'] },
+    { name: 'Ataque', icon: 'ataque', groups: ['Mordida y defensa'] },
+    { name: 'Ring', icon: 'ring', groups: ['Obediencia', 'Saltos', 'Mordida y defensa'] },
+    { name: 'Detección', icon: 'deteccion', groups: ['Detección', 'C-IED', 'Rescate', 'Olfato'] },
+    { name: 'Físico', icon: 'fisico', groups: ['Trabajo físico'] },
+  ],
+  materials: ['Manga', 'Jambier', 'Sin jambier', 'Traje', 'Bocado', 'Piquete móvil', 'Piquete fijo', 'Trabajo con elástico', 'Libre'],
   dogTypes: ['Mascota', 'Ring francés', 'Seguridad y combate', 'Detección', 'C-IED', 'Rescate'],
   resources: ['Sentarse', 'Tumbarse', 'De pie', 'Venir (llamada)', 'Junto', 'Quieto (permanencia)', 'Soltar', 'Vuelta al guía',
     'Foco activo', 'Morder arriba', 'Mordida profunda y estable', 'Cambio de presa', 'Ladrido en marcaje'],
@@ -139,10 +149,29 @@ function toast(msg) {
   toast.timer = setTimeout(() => t.classList.remove('show'), 2600);
 }
 
-function setHeader(title, showBack) {
+function setHeader(title, showBack, eyebrow = '') {
   $('#title').textContent = title;
+  $('#eyebrow').textContent = eyebrow;
+  $('#eyebrow').hidden = !eyebrow;
   $('#back').hidden = !showBack;
 }
+
+const ICONS = {
+  paseo: '<path d="M7 20l2-6 3 2v4M12 7a2 2 0 1 0 0-4 2 2 0 0 0 0 4zM9 14l1-5 4 2 2 3M14 11l3-1"/>',
+  obediencia: '<path d="M6 20v-5l3-3V7a3 3 0 0 1 6 0v3l3 3v7M9 20v-3M15 20v-3"/>',
+  defensa: '<path d="M12 3l7 3v5c0 5-3 8-7 10-4-2-7-5-7-10V6z"/>',
+  ataque: '<path d="M13 2L4 14h7l-1 8 9-12h-7z"/>',
+  ring: '<circle cx="12" cy="12" r="8"/><circle cx="12" cy="12" r="4"/><circle cx="12" cy="12" r="1"/>',
+  deteccion: '<circle cx="11" cy="11" r="6"/><path d="M20 20l-4.5-4.5"/>',
+  fisico: '<path d="M3 12h4l2-5 4 10 2-5h6"/>',
+  mas: '<path d="M12 5v14M5 12h14"/>',
+  chev: '<path d="M9 6l6 6-6 6"/>',
+  trabajo: '<path d="M4 7h16M4 12h16M4 17h10"/>',
+  pilares: '<path d="M6 20V10M12 20V4M18 20v-7"/>',
+  equipo: '<circle cx="9" cy="8" r="3"/><path d="M3 20c0-4 3-6 6-6s6 2 6 6M16 11a3 3 0 1 0 0-6M21 20c0-3-2-5-4-5.5"/>',
+  nota: '<path d="M5 4h10l4 4v12H5zM14 4v5h5M8 13h8M8 17h5"/>',
+};
+const svgIcon = (k) => `<svg class="i" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true">${ICONS[k] || ICONS.mas}</svg>`;
 
 function photoHtml(dog, big) {
   return dog.photo
@@ -154,7 +183,7 @@ function redLinesHtml(dog, compact) {
   const rl = dog.redLines || [];
   if (!rl.length) return '';
   return `<div class="redlines${compact ? ' compact' : ''}">
-    <div class="label">⛔ LÍNEAS ROJAS</div>
+    <div class="label">⛔ Líneas rojas</div>
     <ul>${rl.map((l) => `<li>${esc(l)}</li>`).join('')}</ul>
   </div>`;
 }
@@ -175,28 +204,47 @@ const sortSessions = (s) => s.sort((a, b) => (b.date + b.createdAt).localeCompar
 // ---------- pantallas ----------
 const app = $('#app');
 
+// Color de cada perro según el peor semáforo de sus fases.
+function dogStatus(dog, sessions) {
+  const rank = { red: 3, yellow: 2, green: 1, grey: 0 };
+  let worst = 'grey';
+  for (const [ex, plan] of Object.entries(dog.plans || {})) {
+    const c = semaphore(plan, sessions, ex, dog).color;
+    if (rank[c] > rank[worst]) worst = c;
+  }
+  return { red: 'var(--bad)', yellow: 'var(--warn)', green: 'var(--ok)', grey: 'var(--line)' }[worst];
+}
+
 async function viewHome() {
-  setHeader('Mis perros', false);
+  setHeader('Mis perros', false, new Date().toLocaleDateString('es-ES', { weekday: 'long', day: 'numeric', month: 'short' }));
   const dogs = sortDogs(await DB.all('dogs'));
-  const sessions = await DB.all('sessions');
-  const last = {};
-  for (const s of sessions) if (!last[s.dogId] || s.date > last[s.dogId]) last[s.dogId] = s.date;
+  const sessions = sortSessions(await DB.all('sessions'));
+  const byDog = {};
+  for (const s of sessions) (byDog[s.dogId] = byDog[s.dogId] || []).push(s);
+  const names = Object.fromEntries(dogs.map((d) => [d.id, d.name]));
 
   app.innerHTML = `
     ${backupBanner(sessions)}
-    ${dogs.length ? '' : `<p class="muted">Todavía no hay perros.</p>
+    ${dogs.length ? '' : `<div class="empty">Todavía no hay perros.</div>
       <button class="btn primary" id="starter">Crear las fichas de Aston, Ares, Batman y Dardo</button>`}
-    ${dogs.map((d) => `
-      <a class="card dog-card" href="#/perro/${d.id}">
+    <div class="dogs">${dogs.map((d) => {
+      const last = (byDog[d.id] || [])[0];
+      return `<a class="dog" href="#/perro/${d.id}" style="--ring:${dogStatus(d, byDog[d.id] || [])}">
         ${photoHtml(d)}
-        <div style="flex:1;min-width:0">
-          <div class="name">${esc(d.name)}</div>
-          <div class="muted">${esc([d.type, d.breed, age(d.birth), d.level].filter(Boolean).join(' · '))}</div>
-          <div class="muted">${last[d.id] ? 'Última sesión: ' + fmtDate(last[d.id]) : 'Sin sesiones'}</div>
-          ${(d.redLines || []).length ? `<div style="color:var(--red);font-weight:800">⛔ ${d.redLines.length} línea${d.redLines.length > 1 ? 's' : ''} roja${d.redLines.length > 1 ? 's' : ''}</div>` : ''}
-        </div>
-      </a>`).join('')}
-    <a class="btn" href="#/perro/nuevo/editar">＋ Nuevo perro</a>
+        <div class="name">${esc(d.name)}</div>
+        <div class="sub">${esc([d.type, d.breed].filter(Boolean).join(' · ') || 'Sin datos')}</div>
+        <div class="last"><span class="light"></span>${last ? `${esc(fmtShort(last.date))}${last.activity ? ' · ' + esc(last.activity) : ''}` : 'Sin sesiones'}</div>
+        ${(d.redLines || []).length ? `<div class="reds">⛔ ${d.redLines.length} línea${d.redLines.length > 1 ? 's' : ''} roja${d.redLines.length > 1 ? 's' : ''}</div>` : ''}
+      </a>`;
+    }).join('')}</div>
+    ${sessions.length ? `<div class="panel"><h3>Últimas sesiones</h3><div class="feed">${sessions.slice(0, 5).map((s) => {
+      const act = activityOf(s.activity);
+      const works = (s.exercises || []).map((e) => e.exercise);
+      return `<a href="#/sesion/${s.id}"><span class="ico">${svgIcon(act?.icon || 'trabajo')}</span>
+        <span style="min-width:0">${esc(names[s.dogId] || '¿?')} · ${esc(s.activity || 'Sesión')}${s.minutes ? ` ${s.minutes} min` : ''}
+        <small>${esc(fmtShort(s.date))}${works.length ? ' · ' + esc(works.slice(0, 2).join(', ')) + (works.length > 2 ? '…' : '') : ''}</small></span></a>`;
+    }).join('')}</div></div>` : ''}
+    <a class="btn ghost" href="#/perro/nuevo/editar">＋ Nuevo perro</a>
   `;
   const st = $('#starter');
   if (st) st.onclick = async () => {
@@ -205,6 +253,16 @@ async function viewHome() {
     toast('Fichas creadas. Complétalas cuando puedas.');
     viewHome();
   };
+}
+
+// Fecha corta: hoy, ayer, o día y mes.
+function fmtShort(iso) {
+  const t = today();
+  if (iso === t) return 'Hoy';
+  const y = new Date(Date.now() - 86400000).toLocaleDateString('sv');
+  if (iso === y) return 'Ayer';
+  const [yy, m, d] = iso.split('-').map(Number);
+  return new Date(yy, m - 1, d).toLocaleDateString('es-ES', { day: 'numeric', month: 'short' });
 }
 
 // Perros de Javier, para no tener que crearlos uno a uno.
@@ -226,20 +284,20 @@ function backupBanner(sessions) {
   const days = lastB ? Math.floor((Date.now() - lastB) / 86400000) : null;
   const pending = !lastB || sessions.some((s) => (s.updatedAt || s.createdAt) > settings.lastBackup);
   if (!pending || (days !== null && days < 7)) return '';
-  return `<a class="banner card" href="#/ajustes" style="text-decoration:none">
+  return `<a class="banner" href="#/ajustes">
     💾 ${lastB ? `Hace ${days} días que no guardas copia.` : 'Aún no has guardado ninguna copia.'} Toca aquí para guardarla.
   </a>`;
 }
 
 const dogTab = {}; // pestaña abierta de cada perro, para volver a la misma
-const DOG_TABS = [['resumen', 'Resumen'], ['fases', 'Fases'], ['recursos', 'Recursos'], ['sesiones', 'Sesiones']];
+const DOG_TABS = [['resumen', 'Resumen'], ['avance', 'Avance'], ['fases', 'Fases'], ['recursos', 'Recursos'], ['historial', 'Historial']];
 
 async function viewDog(id) {
   const dog = await DB.get('dogs', id);
   if (!dog) return go('#/');
-  setHeader(dog.name, true);
+  setHeader(dog.name, true, [dog.type, dog.breed, age(dog.birth)].filter(Boolean).join(' · ') || 'Ficha');
   const sessions = sortSessions(await DB.byDog(id));
-  const tab = dogTab[id] || 'resumen';
+  const tab = DOG_TABS.some(([k]) => k === dogTab[id]) ? dogTab[id] : 'resumen';
   const panes = {
     resumen: () => `
       <div class="dog-head">
@@ -264,27 +322,18 @@ async function viewDog(id) {
       <a class="btn small" href="#/perro/${dog.id}/editar">✏️ Editar ficha</a>`,
     fases: () => plansSection(dog, sessions),
     recursos: () => resourcesSection(dog, sessions),
-    sesiones: () => sessions.length ? sessions.map(sessionCard).join('') : '<p class="muted">Aún no hay sesiones.</p>',
+    avance: () => progressHtml(dog, sessions),
+    historial: () => sessions.length ? sessions.map(sessionCard).join('') : '<div class="empty">Aún no hay sesiones.</div>',
   };
   app.innerHTML = `
     <div class="seg" role="tablist">${DOG_TABS.map(([k, l]) =>
-      `<button type="button" role="tab" data-tab-id="${k}" aria-selected="${k === tab}">${l}${k === 'sesiones' && sessions.length ? ` <span class="count">${sessions.length}</span>` : ''}</button>`).join('')}</div>
+      `<button type="button" role="tab" data-tab-id="${k}" aria-selected="${k === tab}">${l}${k === 'historial' && sessions.length ? ` <span class="count">${sessions.length}</span>` : ''}</button>`).join('')}</div>
     <div class="tabpane">${panes[tab]()}</div>
   `;
   $$('[data-tab-id]').forEach((b) => (b.onclick = () => { dogTab[id] = b.dataset.tabId; viewDog(id); }));
 }
 
 const fact = (label, value) => (value ? `<dt>${label}</dt><dd>${esc(value)}</dd>` : '');
-
-function sessionCard(s) {
-  const who = [s.guide && 'Guía: ' + s.guide, s.figurant && 'Figurante: ' + s.figurant].filter(Boolean).join(' · ');
-  return `<a class="card" href="#/sesion/${s.id}">
-    <div style="font-weight:800">${fmtDate(s.date)}</div>
-    ${who ? `<div class="muted">${esc(who)}</div>` : ''}
-    ${s.exercises.map((e) => exerciseSummary(e)).join('')}
-    ${(s.resources || []).map(resourceSummary).join('')}
-  </a>`;
-}
 
 const num = (v) => String(v).replace('.', ',');
 
@@ -293,28 +342,6 @@ function physicalLine(e) {
     e.pmode === 'Series' && e.series ? `${e.series} × ${e.seriesTime ? e.seriesTime + ' s' : 'series'}${e.rest ? ', descanso ' + e.rest + ' s' : ''}` : '',
     e.speed ? num(e.speed) + ' km/h' : '',
     e.hrAvg ? 'FC media ' + e.hrAvg : '', e.hrMax ? 'FC máx. ' + e.hrMax : ''].filter(Boolean).join(' · ');
-}
-
-// linkable: false cuando el resumen va dentro de otro enlace (no se pueden anidar).
-function exerciseSummary(e, linkable) {
-  const phys = physicalLine(e);
-  const tags = [e.mark, e.falses ? `${e.falses} falso${e.falses > 1 ? 's' : ''} marcaje${e.falses > 1 ? 's' : ''}` : '', e.entry, e.bite && e.bite !== 'No aplica' ? e.bite : '', e.cut && 'Corte: ' + e.cut]
-    .filter(Boolean)
-    .map((t) => `<span class="tag${BAD.has(t.replace('Corte: ', '')) || /falsos? marcaje/.test(t) ? ' bad' : ''}">${esc(t)}</span>`)
-    .join('');
-  return `<div class="ex-line">
-    <div><b>${esc(e.exercise)}</b> <span class="muted">${esc([e.tool, e.reps ? e.reps + ' rep.' : '',
-      e.hides != null ? `${e.found ?? 0} de ${e.hides} encontrados` : '', e.minutes ? e.minutes + ' min' : '', e.intensity && 'Intensidad ' + e.intensity.toLowerCase()].filter(Boolean).join(' · '))}</span></div>
-    ${e.phaseName ? `<div class="muted" style="font-size:.85rem">${esc(e.phaseName)}</div>` : ''}
-    ${phys ? `<div class="muted">${esc(phys)}</div>` : ''}
-    ${/^https?:\/\//i.test(e.link || '') ? (linkable ? `<div><a href="${esc(e.link)}" target="_blank" rel="noopener" class="ext-link">⌚ Ver actividad del reloj ↗</a></div>` : '<div class="muted">⌚ Actividad del reloj vinculada</div>') : ''}
-    ${exType(e.exercise) === 'fisico' && !e.intention ? '' : `<div class="pillars">${PILLARS.map(([k, l]) => `<div class="pill">${l}<b>${e[k] || '–'}</b></div>`).join('')}</div>`}
-    ${tags ? `<div style="margin-top:6px">${tags}</div>` : ''}
-    ${Object.keys(e.checks || {}).length ? `<div style="margin-top:6px">${Object.entries(e.checks).map(([c, v]) =>
-      `<span class="tag${v === 'No' ? ' bad' : ''}">${v === 'Sí' ? '✔' : v === 'No' ? '✘' : '½'} ${esc(c)}</span>`).join('')}</div>` : ''}
-    ${e.note ? `<div class="muted" style="margin-top:4px;white-space:pre-wrap">📝 ${esc(e.note)}</div>` : ''}
-    ${e.audio ? `<div class="muted">🎙 Nota de voz</div>` : ''}
-  </div>`;
 }
 
 async function viewDogEdit(id) {
@@ -433,422 +460,8 @@ function resizeImage(file, max) {
   });
 }
 
-async function viewPickDog() {
-  setHeader('¿Qué perro?', false);
-  const dogs = sortDogs(await DB.all('dogs'));
-  if (dogs.length === 1) return go('#/registrar/' + dogs[0].id);
-  app.innerHTML = dogs.length
-    ? dogs.map((d) => `<a class="card dog-card" href="#/registrar/${d.id}">${photoHtml(d)}<div class="name">${esc(d.name)}</div></a>`).join('')
-    : `<p>Primero crea la ficha de un perro.</p><a class="btn primary" href="#/perro/nuevo/editar">＋ Nuevo perro</a>`;
-}
-
-// ---------- registro de sesión ----------
-async function viewSession({ dogId, sessionId }) {
-  let session;
-  if (sessionId) {
-    session = await DB.get('sessions', sessionId);
-    if (!session) return go('#/');
-    dogId = session.dogId;
-  }
-  const dog = await DB.get('dogs', dogId);
-  if (!dog) return go('#/');
-  const isNew = !session;
-  if (isNew) {
-    // Guía y figurante de la última sesión de este perro, para no tener que elegirlos otra vez.
-    const prev = sortSessions(await DB.byDog(dogId))[0];
-    session = { id: uid(), dogId, date: today(), guide: prev?.guide || '', figurant: prev?.figurant || '', exercises: [] };
-  }
-  session.resources = session.resources || [];
-  const dogSessions = await DB.byDog(dogId);
-  let resEditing = null; // índice del recurso en edición; -1 = nuevo
-  const hasContent = () => session.exercises.length || session.resources.length;
-  setHeader(isNew ? 'Sesión · ' + dog.name : 'Editar sesión', true);
-
-  let editing = isNew ? -1 : null; // índice del ejercicio en edición; -1 = nuevo; null = ninguno
-
-  const people = (filter) => {
-    const names = settings.team.filter(filter).map((p) => p.name);
-    return names;
-  };
-
-  async function persist() {
-    const now = new Date().toISOString();
-    session.createdAt = session.createdAt || now;
-    session.updatedAt = now;
-    await DB.put('sessions', session);
-  }
-
-  // Mientras se rellena un ejercicio o un recurso solo se ve ese formulario, paso a paso.
-  function render() {
-    const guides = people((p) => p.role === 'Guía');
-    const figs = people((p) => p.role !== 'Guía');
-    const strip = `${(dog.redLines || []).length ? `<div class="strip-red">⛔ ${dog.redLines.map(esc).join(' · ')}</div>` : ''}`;
-    if (editing !== null || resEditing !== null) {
-      document.body.classList.add('focus');
-      app.innerHTML = strip + (editing !== null ? exerciseForm(pending || (editing >= 0 ? session.exercises[editing] : {})) : resourceForm(resEditing >= 0 ? session.resources[resEditing] : {}));
-      bind();
-      return;
-    }
-    document.body.classList.remove('focus');
-    app.innerHTML = `
-      ${strip}
-      <div class="meta">
-        <input type="date" id="sDate" value="${esc(session.date)}" aria-label="Fecha">
-        <label>Guía${personSelect('sGuide', guides, session.guide)}</label>
-        <label>Figurante${personSelect('sFig', figs, session.figurant)}</label>
-      </div>
-      ${session.exercises.map((e, i) => `<div class="card entry">${exerciseSummary(e, true)}
-          <div class="entry-actions"><button class="btn small" data-edit="${i}">Cambiar</button><button class="btn small danger" data-del="${i}">Quitar</button></div></div>`).join('')}
-      ${session.resources.map((r, i) => `<div class="card entry">${resourceSummary(r)}
-          <div class="entry-actions"><button class="btn small" data-redit="${i}">Cambiar</button><button class="btn small danger" data-rdel="${i}">Quitar</button></div></div>`).join('')}
-      ${hasContent() ? '' : '<p class="muted">¿Qué vais a trabajar? Añade un ejercicio o un recurso.</p>'}
-      <div class="row">
-        <button class="btn primary" id="addEx">＋ Ejercicio</button>
-        <button class="btn primary" id="addRes">＋ Recurso</button>
-      </div>
-      ${hasContent() ? `<a class="btn" href="#/perro/${dog.id}" id="finish">✔ Terminar sesión</a>` : ''}
-      ${!isNew ? '<button class="btn small danger" id="delSession">Borrar sesión</button>' : ''}
-    `;
-    bind();
-  }
-
-  function personSelect(id, names, current) {
-    const all = current && !names.includes(current) ? [...names, current] : names;
-    if (!all.length) return `<input id="${id}" value="${esc(current)}" placeholder="Nombre" autocomplete="off">`;
-    return `<select id="${id}"><option value="">—</option>${all.map((n) => `<option ${n === current ? 'selected' : ''}>${esc(n)}</option>`).join('')}</select>`;
-  }
-
-  const phaseOf = (e) => getPlan(dog, e.exercise)?.phases.find((p) => p.id === e.phaseId);
-
-  // Lo que toca en la fase actual: objetivo, recursos que necesita y criterios para marcar.
-  function phaseInfo(e) {
-    if (!e.phaseName) return '';
-    const ph = phaseOf(e);
-    return `<div class="phase-info">▶ ${esc(e.phaseName)}
-        ${ph?.goal ? `<div style="font-weight:400;margin-top:2px">${esc(ph.goal)}</div>` : ''}
-        ${(ph?.requires || []).length ? requirementsHtml(dog, dogSessions, ph.requires) : ''}
-      </div>`;
-  }
-  const criteriaHtml = (e) => criteriaList(phaseOf(e)).map((c, i) =>
-    `<div class="crit"><div class="crit-name">${esc(c)}</div>${chips('crit:' + i, CHECKS, e.checks?.[c], 'checks')}</div>`).join('');
-
-  function resourceForm(r) {
-    const list = dogResources(dog);
-    const opts = r.name && !list.includes(r.name) ? [...list, r.name] : list;
-    return `<div id="resForm" class="wizard">
-      <section class="step" data-types="all" data-title="Recurso">${chips('res', opts, r.name)}</section>
-      <section class="step" data-types="all" data-title="Situación y aciertos">
-        ${chips('ctx', settings.contexts.map((_, i) => ctxLabel(i)), r.ctx != null ? ctxLabel(r.ctx) : '', 'one-col')}
-        <div id="resLevel"></div>
-        <div class="row">
-          <div class="group"><div class="glabel">Intentos</div>${stepper('tries', r.tries ?? 5, 1, 'rstep')}</div>
-          <div class="group"><div class="glabel">Aciertos</div>${stepper('hits', r.hits ?? 0, 1, 'rstep')}</div>
-        </div>
-        <input id="resNote" value="${esc(r.note)}" placeholder="Nota (opcional)" autocomplete="off">
-      </section>
-      ${wizardNav('saveRes', 'cancelRes')}
-    </div>`;
-  }
-
-  function bindResForm() {
-    const f = $('#resForm');
-    if (!f) return;
-    const r = resEditing >= 0 ? { ...session.resources[resEditing] } : {};
-    const showLevel = () => {
-      $('#resLevel').innerHTML = r.name && r.ctx != null
-        ? (() => { const st = resourceLevel(dog, dogSessions, r.name, r.ctx); return `<div class="phase-info" style="display:flex;gap:10px;align-items:center">${cell(st)} Ahora: ${LEVELS[st.level]}${st.tries ? ' (' + pctText(st) + ')' : ''}</div>`; })()
-        : '';
-    };
-    showLevel();
-    const wiz = setupWizard(f, () => 'all', r.name ? 1 : 0);
-    f.onclick = (ev) => {
-      const b = ev.target.closest('.chip');
-      if (b) {
-        const group = b.closest('.chips');
-        $$('.chip', group).forEach((c) => c.setAttribute('aria-pressed', String(c === b)));
-        if (group.dataset.group === 'res') { r.name = b.dataset.value; wiz.next(); }
-        else r.ctx = parseInt(b.dataset.value, 10) - 1;
-        showLevel();
-        return;
-      }
-      const st = ev.target.closest('[data-rstep]');
-      if (st) {
-        const out = $('#' + st.dataset.for);
-        out.textContent = Math.max(0, +out.textContent + +st.dataset.rstep);
-        const tries = $('#tries'), hits = $('#hits');
-        if (+hits.textContent > +tries.textContent) (st.dataset.for === 'hits' ? tries : hits).textContent = st.dataset.for === 'hits' ? hits.textContent : tries.textContent;
-      }
-    };
-    $('#saveRes').onclick = async () => {
-      if (!r.name || r.ctx == null) { toast('Elige el recurso y la situación'); return; }
-      r.tries = +$('#tries').textContent;
-      r.hits = +$('#hits').textContent;
-      r.note = $('#resNote').value.trim();
-      if (!r.note) delete r.note;
-      if (resEditing === -1) session.resources.push(r); else session.resources[resEditing] = r;
-      await persist();
-      resEditing = null;
-      toast('Recurso guardado');
-      render();
-    };
-    $('#cancelRes').onclick = () => { resEditing = null; render(); };
-  }
-
-  // Pasa al borrador lo escrito en contadores y casillas.
-  function readFields(draft) {
-    for (const k of ['reps', 'minutes', 'hides', 'found', 'falses', 'series']) draft[k] = +$('#' + k).textContent;
-    for (const k of ['speed', 'seriesTime', 'rest', 'hrAvg', 'hrMax']) {
-      const v = parseFloat($('#' + k).value.replace(',', '.'));
-      draft[k] = Number.isFinite(v) ? v : '';
-    }
-    draft.link = $('#link').value.trim();
-  }
-
-  let showAll = false;
-  let pending = null; // ejercicio a medio rellenar
-  function exerciseForm(e) {
-    const own = dog.exercises && dog.exercises.length && !showAll ? dog.exercises : allExercises();
-    const exs = e.exercise && !own.includes(e.exercise) ? [...own, e.exercise] : own;
-    const type = e.exercise ? exType(e.exercise) : '';
-    return `<div id="exForm" class="wizard" data-type="${type}" data-pmode="${esc(e.pmode || '')}">
-      <section class="step" data-types="all" data-title="Ejercicio">
-        ${exerciseChips('exercise', exs, e.exercise)}
-        ${own !== allExercises() ? '<button type="button" class="btn small" id="showAll">Ver todos los ejercicios</button>' : ''}
-      </section>
-
-      <section class="step" data-types="mordida tecnico deteccion fisico" data-title="Cómo se trabaja">
-        <div id="phaseInfo">${phaseInfo(e)}</div>
-        <div class="group only-mordida"><div class="glabel">Herramienta</div>${chips('tool', settings.tools, e.tool)}</div>
-        <div class="group only-mordida only-tecnico"><div class="glabel">Repeticiones</div>${stepper('reps', e.reps ?? 1, 1)}</div>
-        <div class="row only-deteccion">
-          ${[['hides', 'Escondites', e.hides ?? 3], ['found', 'Encontrados', e.found ?? 0]].map(([k, l, v]) =>
-            `<div class="group"><div class="glabel">${l}</div>${stepper(k, v, 1)}</div>`).join('')}
-        </div>
-        <div class="group only-deteccion"><div class="glabel">Falsos marcajes</div>${stepper('falses', e.falses ?? 0, 1)}</div>
-        <div class="group only-fisico"><div class="glabel">Tipo de trabajo</div>${chips('pmode', ['Continuo', 'Series'], e.pmode)}</div>
-        <div class="group only-fisico"><div class="glabel">Minutos en total</div>${stepper('minutes', e.minutes ?? 10, 5)}</div>
-        <label class="field only-continuo">Velocidad media (km/h)${numInput('speed', e.speed, '12,5', true)}</label>
-        <div class="group only-series"><div class="glabel">Número de series</div>${stepper('series', e.series ?? 4, 1)}</div>
-        <div class="row only-series">
-          <label class="field">Cada serie (seg.)${numInput('seriesTime', e.seriesTime, '30')}</label>
-          <label class="field">Descanso (seg.)${numInput('rest', e.rest, '60')}</label>
-        </div>
-      </section>
-
-      <section class="step" data-types="mordida tecnico deteccion" data-title="Intención, precisión y control">
-        <div class="group only-deteccion"><div class="glabel">Marcaje</div>${chips('mark', settings.marks, e.mark)}</div>
-        ${PILLARS.map(([k, l]) => `<div class="group"><div class="glabel">${l}</div>${chips(k, ['1', '2', '3', '4', '5'], e[k] ? String(e[k]) : '', 'scores')}</div>`).join('')}
-      </section>
-
-      <section class="step" data-types="fisico" data-title="Intensidad y pulsómetro">
-        <div class="group"><div class="glabel">Intensidad</div>${chips('intensity', settings.intensities, e.intensity)}</div>
-        <div class="row">
-          <label class="field">FC media (ppm)${numInput('hrAvg', e.hrAvg, '140')}</label>
-          <label class="field">FC máxima (ppm)${numInput('hrMax', e.hrMax, '180')}</label>
-        </div>
-        <label class="field">Enlace de Garmin, Strava o Polar
-          <input id="link" type="url" inputmode="url" value="${esc(e.link)}" placeholder="https://… (opcional)" autocomplete="off"></label>
-      </section>
-
-      <section class="step" data-types="mordida" data-title="Entrada, mordida y corte">
-        <div class="group"><div class="glabel">Entrada</div>${chips('entry', settings.entries, e.entry)}</div>
-        <div class="group"><div class="glabel">Mordida</div>${chips('bite', settings.bites, e.bite)}</div>
-        <div class="group"><div class="glabel">Reacción al corte</div>${chips('cut', settings.cuts, e.cut)}</div>
-      </section>
-
-      <section class="step" id="stepCrit" data-types="mordida tecnico deteccion fisico" data-title="Criterios de la fase">
-        <div id="critBox">${criteriaHtml(e)}</div>
-      </section>
-
-      <section class="step" data-types="all" data-title="Nota">
-        <textarea id="exNote" placeholder="Escribe o usa los botones de voz">${esc(e.note)}</textarea>
-        <div class="row">
-          <button type="button" class="btn small" id="dictate">🎙 Dictar</button>
-          <button type="button" class="btn small" id="record">⏺ Grabar audio</button>
-        </div>
-        <div id="audioBox">${e.audio ? audioHtml(e.audio) : ''}</div>
-      </section>
-      ${wizardNav('saveEx', 'cancelEx')}
-    </div>`;
-  }
-
-  const audioHtml = (src) => `<audio controls src="${src}" style="width:100%;margin-top:8px"></audio>
+const audioHtml = (src) => `<audio controls src="${src}" style="width:100%;margin-top:8px"></audio>
     <button type="button" class="btn small danger" id="delAudio">Borrar audio</button>`;
-
-  function bind() {
-    if ($('#sDate')) {
-      $('#sDate').onchange = (ev) => { session.date = ev.target.value || today(); if (hasContent()) persist(); };
-      for (const [id, key] of [['sGuide', 'guide'], ['sFig', 'figurant']]) {
-        $('#' + id).onchange = (ev) => { session[key] = ev.target.value.trim(); if (hasContent()) persist(); };
-      }
-    }
-    $$('[data-edit]').forEach((b) => (b.onclick = () => { editing = +b.dataset.edit; render(); }));
-    $$('[data-del]').forEach((b) => (b.onclick = async () => {
-      if (!await ask('¿Quitar este ejercicio?')) return;
-      session.exercises.splice(+b.dataset.del, 1);
-      if (hasContent()) await persist(); else await DB.del('sessions', session.id);
-      render();
-    }));
-    $$('[data-redit]').forEach((b) => (b.onclick = () => { resEditing = +b.dataset.redit; render(); }));
-    $$('[data-rdel]').forEach((b) => (b.onclick = async () => {
-      if (!await ask('¿Quitar este recurso?')) return;
-      session.resources.splice(+b.dataset.rdel, 1);
-      if (hasContent()) await persist(); else await DB.del('sessions', session.id);
-      render();
-    }));
-    const add = $('#addEx');
-    if (add) add.onclick = () => { editing = -1; render(); };
-    const addR = $('#addRes');
-    if (addR) addR.onclick = () => { resEditing = -1; render(); };
-    bindResForm();
-    const delS = $('#delSession');
-    if (delS) delS.onclick = async () => {
-      if (!await ask('¿Borrar la sesión entera?')) return;
-      await DB.del('sessions', session.id);
-      toast('Sesión borrada');
-      go('#/perro/' + dog.id);
-    };
-    const finish = $('#finish');
-    if (finish) finish.onclick = () => toast('Sesión guardada');
-
-    const form = $('#exForm');
-    if (!form) return;
-    const base = editing >= 0 ? session.exercises[editing] : {};
-    const draft = pending || { ...base };
-    pending = draft;
-
-    const wiz = setupWizard(form, () => form.dataset.type, draft.exercise ? 1 : 0);
-    // Un solo manejador para todo el formulario: los criterios cambian al elegir otro ejercicio.
-    form.onclick = (ev) => {
-        const b = ev.target.closest('.chip');
-        if (!b) return;
-        const group = b.closest('.chips');
-        const key = group.dataset.group;
-        if (key.startsWith('crit:')) {
-          const crit = criteriaList(phaseOf(draft))[+key.split(':')[1]];
-          const on = b.getAttribute('aria-pressed') !== 'true';
-          $$('.chip', group).forEach((c) => c.setAttribute('aria-pressed', String(on && c === b)));
-          draft.checks = { ...(draft.checks || {}) };
-          if (on) draft.checks[crit] = b.dataset.value; else delete draft.checks[crit];
-          return;
-        }
-        const on = b.getAttribute('aria-pressed') !== 'true';
-        $$('.chip', group).forEach((c) => c.setAttribute('aria-pressed', 'false'));
-        b.setAttribute('aria-pressed', String(on));
-        draft[key] = on ? (group.classList.contains('scores') ? +b.dataset.value : b.dataset.value) : '';
-        if (key === 'exercise') {
-          if (on && editing === -1) prefillTool(draft, form);
-          const ph = on ? currentPhase(getPlan(dog, draft.exercise)) : null;
-          draft.phaseId = ph?.id || '';
-          draft.phaseName = ph ? `Fase ${getPlan(dog, draft.exercise).current + 1}${ph.name ? ': ' + ph.name : ''}` : '';
-          draft.checks = {};
-          $('#phaseInfo').innerHTML = phaseInfo(draft);
-          $('#critBox').innerHTML = criteriaHtml(draft);
-          form.dataset.type = on ? exType(draft.exercise) : '';
-          if (on) wiz.next(); else wiz.refresh();
-        }
-        if (key === 'pmode') {
-          form.dataset.pmode = draft.pmode || '';
-        }
-    };
-    $$('[data-step]', form).forEach((b) => (b.onclick = () => {
-      const out = $('#' + b.dataset.for);
-      out.textContent = Math.max(0, +out.textContent + +b.dataset.step);
-    }));
-    const sa = $('#showAll', form);
-    if (sa) sa.onclick = () => {
-      showAll = true;
-      draft.note = $('#exNote').value;
-      readFields(draft);
-      render(); // se redibuja con lo ya marcado (pending)
-    };
-
-    setupVoice(form, draft);
-
-    $('#saveEx').onclick = async () => {
-      if (!draft.exercise) { toast('Elige el ejercicio'); form.scrollIntoView({ behavior: 'smooth' }); return; }
-      draft.note = $('#exNote').value.trim();
-      // Solo se guarda lo que corresponde a este tipo de ejercicio.
-      const type = exType(draft.exercise);
-      const FIELDS = {
-        mordida: ['tool', 'reps', 'intention', 'precision', 'control', 'entry', 'bite', 'cut'],
-        tecnico: ['reps', 'intention', 'precision', 'control'],
-        deteccion: ['hides', 'found', 'falses', 'mark', 'intention', 'precision', 'control'],
-        fisico: ['minutes', 'intensity', 'pmode', 'hrAvg', 'hrMax', 'link'],
-      }[type].slice();
-      readFields(draft);
-      if (type === 'fisico') FIELDS.push(...(draft.pmode === 'Series' ? ['series', 'seriesTime', 'rest'] : draft.pmode === 'Continuo' ? ['speed'] : []));
-      for (const k of Object.keys(draft)) {
-        if (ALL_FIELDS.includes(k) && (!FIELDS.includes(k) || draft[k] === '' || draft[k] == null)) delete draft[k];
-      }
-      if (!Object.keys(draft.checks || {}).length) delete draft.checks;
-      if (editing === -1) session.exercises.push(draft); else session.exercises[editing] = draft;
-      await persist();
-      editing = null;
-      pending = null;
-      showAll = false;
-      toast('Ejercicio guardado');
-      render();
-    };
-    $('#cancelEx').onclick = () => { stopRecording(); editing = null; pending = null; showAll = false; render(); };
-  }
-
-  // Al elegir ejercicio, propone la herramienta que usaste la última vez con este perro.
-  async function prefillTool(draft, form) {
-    if (draft.tool) return;
-    const prev = sortSessions(await DB.byDog(dog.id));
-    for (const s of prev) {
-      const e = s.exercises.find((x) => x.exercise === draft.exercise && x.tool);
-      if (e) {
-        draft.tool = e.tool;
-        $$('[data-group="tool"] .chip', form).forEach((c) => c.setAttribute('aria-pressed', String(c.dataset.value === e.tool)));
-        return;
-      }
-    }
-  }
-
-  render();
-}
-
-// ---------- formularios por pasos ----------
-const stepper = (id, value, step, attr = 'step') =>
-  `<div class="stepper"><button type="button" data-${attr}="-${step}" data-for="${id}">−</button><output id="${id}">${value}</output><button type="button" data-${attr}="${step}" data-for="${id}">＋</button></div>`;
-
-const wizardNav = (saveId, cancelId) => `<div class="wiz-nav">
-    <button type="button" class="btn small" id="${cancelId}">✕</button>
-    <button type="button" class="btn small" data-wiz="-1">‹ Atrás</button>
-    <button type="button" class="btn small" data-wiz="1">Siguiente ›</button>
-    <button type="button" class="btn primary small" id="${saveId}">✔ Guardar</button>
-  </div>`;
-
-// Enseña un paso cada vez. typeOf() dice qué pasos tocan según el tipo de ejercicio.
-function setupWizard(root, typeOf, startAt = 0) {
-  const steps = $$('.step', root);
-  let cur = 0;
-  const visible = () => steps.filter((s) => {
-    const t = typeOf();
-    const ok = s.dataset.types === 'all' || (t && s.dataset.types.split(' ').includes(t));
-    return ok && (s.id !== 'stepCrit' || $('#critBox', s).innerHTML.trim());
-  });
-  function show() {
-    const vis = visible();
-    cur = Math.min(cur, vis.length - 1);
-    steps.forEach((s) => (s.hidden = s !== vis[cur]));
-    let head = $('.wiz-head', root);
-    if (!head) { head = document.createElement('div'); head.className = 'wiz-head'; root.prepend(head); }
-    const name = root.querySelector('[data-group="exercise"] [aria-pressed="true"], [data-group="res"] [aria-pressed="true"]')?.dataset.value;
-    head.innerHTML = `<div class="wiz-title">${esc(vis[cur].dataset.title)}${name && cur ? ` · <span class="muted">${esc(name)}</span>` : ''}</div>
-      <div class="dots">${vis.map((_, i) => `<span class="${i === cur ? 'on' : ''}"></span>`).join('')}</div>`;
-    $('[data-wiz="-1"]', root).disabled = cur === 0;
-    $('[data-wiz="1"]', root).hidden = cur >= vis.length - 1;
-    window.scrollTo(0, 0);
-  }
-  $$('[data-wiz]', root).forEach((b) => (b.onclick = () => { cur += +b.dataset.wiz; show(); }));
-  const api = { next() { cur++; show(); }, refresh: show };
-  cur = Math.min(startAt, visible().length - 1);
-  show();
-  return api;
-}
 
 // ---------- voz ----------
 let recorder = null;
@@ -882,6 +495,7 @@ function setupVoice(form, draft) {
         if (ev.results[i].isFinal) {
           const t = ev.results[i][0].transcript.trim();
           note.value = (note.value ? note.value.trimEnd() + ' ' : '') + t;
+          note.dispatchEvent(new Event('input', { bubbles: true }));
         }
       }
     };
@@ -957,12 +571,15 @@ async function viewSettings() {
     <p class="muted" style="font-size:.85rem">Una opción por línea. Se guardan al salir del cuadro.</p>
     ${settings.exGroups.map((g, i) => `<label class="field">${esc(g.name)}<textarea data-exgroup="${i}" rows="5">${esc(g.items.join('\n'))}</textarea></label>`).join('')}
     ${listEditor('dogTypes', 'Tipos de perro')}
+    <label class="field">Actividades<span class="hint">Una por línea. Las nuevas aparecen con el icono «＋».</span>
+      <textarea data-acts rows="6">${esc(settings.activities.map((a) => a.name).join('\n'))}</textarea></label>
+    ${listEditor('materials', 'Materiales')}
     ${listEditor('resources', 'Recursos')}
     <label class="field">Situaciones, de más fácil a más difícil<span class="hint">Los registros guardan el número de la situación: si cambias el orden, cambia también en los registros antiguos.</span>
       <textarea data-list="contexts" rows="5">${esc(settings.contexts.join('\n'))}</textarea></label>
     ${listEditor('bites', 'Opciones de mordida')}
     ${listEditor('levels', 'Niveles del perro')}
-    <p class="muted" style="font-size:.8rem;margin-top:30px">Impacto K9 · Pista — versión 7</p>
+    <p class="muted" style="font-size:.8rem;margin-top:30px">Impacto K9 · Pista — versión 8</p>
   `;
 
   $('#doBackup').onclick = doBackup;
@@ -993,6 +610,13 @@ async function viewSettings() {
     $$('#team input').at(-1).focus();
   };
 
+  $('[data-acts]').onchange = async (ev) => {
+    const names = lines(ev.target.value);
+    if (!names.length) return;
+    settings.activities = names.map((n) => settings.activities.find((a) => a.name === n) || DEFAULTS.activities.find((a) => a.name === n) || { name: n, icon: 'mas', groups: [] });
+    await saveSettings();
+    toast('Lista guardada');
+  };
   $$('[data-exgroup]').forEach((ta) => (ta.onchange = async () => {
     settings.exGroups[+ta.dataset.exgroup].items = lines(ta.value);
     await saveSettings();
@@ -1110,7 +734,9 @@ async function route() {
   stopRecording();
   document.body.classList.remove('focus');
   const parts = currentPath().replace(/^#\/?/, '').split('/').filter(Boolean);
-  const tab = parts[0] === 'registrar' || parts[0] === 'sesion' ? 'log' : parts[0] === 'ajustes' ? 'settings' : 'home';
+  document.body.classList.remove('focus', 'has-savebar');
+  app.oninput = app.onchange = app.onclick = app.onkeydown = null;
+  const tab = parts[0] === 'registrar' || parts[0] === 'sesion' ? 'log' : parts[0] === 'ajustes' ? 'settings' : parts[0] === 'avance' ? 'progress' : 'home';
   $$('#tabs a').forEach((a) => a.classList.toggle('active', a.dataset.tab === tab));
   window.scrollTo(0, 0);
   try {
@@ -1121,7 +747,8 @@ async function route() {
     else if (parts[0] === 'perro' && parts[2] === 'recursos') await viewResourcesPick(parts[1]);
     else if (parts[0] === 'perro') await viewDog(parts[1]);
     else if (parts[0] === 'registrar' && parts[1]) await viewSession({ dogId: parts[1] });
-    else if (parts[0] === 'registrar') await viewPickDog();
+    else if (parts[0] === 'registrar') await viewSession({});
+    else if (parts[0] === 'avance') await viewProgress(parts[1]);
     else if (parts[0] === 'sesion') await viewSession({ sessionId: parts[1] });
     else if (parts[0] === 'ajustes') await viewSettings();
     else go('#/');

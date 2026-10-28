@@ -6,7 +6,12 @@ out = pathlib.Path(sys.argv[1])
 html = (root / 'index.html').read_text()
 body = re.search(r'<body>(.*?)<script', html, re.S).group(1)
 css = (root / 'styles.css').read_text()
-js = ''.join((root / f).read_text() for f in ['db.js', 'resources.js', 'phases.js', 'app.js'])
+# Las letras van dentro del archivo para que se vean también en el chat.
+import base64
+for f in ['archivo.woff2', 'plexmono-500.woff2', 'plexmono-600.woff2']:
+    data = base64.b64encode((root / 'fonts' / f).read_bytes()).decode()
+    css = css.replace(f'url("fonts/{f}")', f'url("data:font/woff2;base64,{data}")')
+js = ''.join((root / f).read_text() for f in ['db.js', 'resources.js', 'phases.js', 'session.js', 'progress.js', 'app.js'])
 assert '</script' not in js
 
 extra_css = """

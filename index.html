@@ -3,7 +3,7 @@
 <head>
   <meta charset="utf-8">
   <meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
-  <meta name="theme-color" content="#111111">
+  <meta name="theme-color" content="#f5f6f1">
   <meta name="mobile-web-app-capable" content="yes">
   <meta name="apple-mobile-web-app-capable" content="yes">
   <meta name="apple-mobile-web-app-title" content="Impacto K9">
@@ -15,20 +15,23 @@
 </head>
 <body>
   <header id="top">
-    <button id="back" class="icon-btn" aria-label="Volver" hidden>‹</button>
-    <h1 id="title">Impacto K9</h1>
-    <button id="theme" class="icon-btn" aria-label="Cambiar claro/oscuro">◐</button>
+    <button id="back" class="icon-btn" aria-label="Volver" hidden><svg class="i" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M15 6l-6 6 6 6"/></svg></button>
+    <div class="titles"><p class="eyebrow" id="eyebrow"></p><h1 id="title">Impacto K9</h1></div>
+    <button id="theme" class="icon-btn" aria-label="Cambiar claro u oscuro"><svg class="i" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><circle cx="12" cy="12" r="8"/><path d="M12 4v16a8 8 0 0 0 0-16z" fill="currentColor"/></svg></button>
   </header>
   <main id="app"></main>
   <nav id="tabs">
-    <a href="#/" data-tab="home">Perros</a>
-    <a href="#/registrar" data-tab="log" class="primary-tab">＋ Sesión</a>
-    <a href="#/ajustes" data-tab="settings">Ajustes</a>
+    <a href="#/" data-tab="home"><svg class="i" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><circle cx="5.5" cy="9" r="1.8"/><circle cx="9.5" cy="5" r="1.8"/><circle cx="14.5" cy="5" r="1.8"/><circle cx="18.5" cy="9" r="1.8"/><path d="M12 11c-3 0-6 4-6 7 0 2 2 2 3 2h6c1 0 3 0 3-2 0-3-3-7-6-7z"/></svg>Perros</a>
+    <a href="#/registrar" data-tab="log" class="primary-tab"><svg class="i" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round"><path d="M12 5v14M5 12h14"/></svg>Sesión</a>
+    <a href="#/avance" data-tab="progress"><svg class="i" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M4 19V5M4 19h16M8 15l3-4 3 2 5-6"/></svg>Avance</a>
+    <a href="#/ajustes" data-tab="settings"><svg class="i" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M4 7h10M18 7h2M4 17h4M12 17h8"/><circle cx="16" cy="7" r="2"/><circle cx="10" cy="17" r="2"/></svg>Ajustes</a>
   </nav>
   <div id="toast" role="status" aria-live="polite"></div>
   <script src="db.js"></script>
   <script src="resources.js"></script>
   <script src="phases.js"></script>
+  <script src="session.js"></script>
+  <script src="progress.js"></script>
   <script src="app.js"></script>
 </body>
 </html>

@@ -1,5 +1,5 @@
 // Guarda la app en el móvil para que funcione sin cobertura.
-const CACHE = 'impacto-k9-v8';
+const CACHE = 'impacto-k9-v9';
 const FILES = [
   './',
   './index.html',
@@ -7,7 +7,12 @@ const FILES = [
   './db.js',
   './resources.js',
   './phases.js',
+  './session.js',
+  './progress.js',
   './app.js',
+  './fonts/archivo.woff2',
+  './fonts/plexmono-500.woff2',
+  './fonts/plexmono-600.woff2',
   './manifest.webmanifest',
   './icons/icon-192.png',
   './icons/icon-512.png',
