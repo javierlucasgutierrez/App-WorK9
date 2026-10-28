@@ -1,7 +1,7 @@
 // Fases de trabajo por ejercicio y semáforo para saber si el perro está listo para pasar de fase.
 
 const PLAN_DEFAULTS = { minSessions: 3, minScore: 4 };
-const ALARMS = new Set(['Con choque', 'Se queda con la presa']);
+const ALARMS = new Set(['Con choque', 'Se queda con la presa', 'Marcaje activo (rasca o muerde)']);
 
 function getPlan(dog, exercise) {
   return (dog.plans || {})[exercise];
@@ -28,7 +28,10 @@ function semaphore(plan, sessions, exercise) {
   const reasons = [];
   const all = recent.flatMap((s) => s.entries);
   const alarms = {};
-  for (const e of all) for (const v of [e.entry, e.cut]) if (ALARMS.has(v)) alarms[v] = (alarms[v] || 0) + 1;
+  for (const e of all) {
+    for (const v of [e.entry, e.cut, e.mark]) if (ALARMS.has(v)) alarms[v] = (alarms[v] || 0) + 1;
+    if (e.falses) alarms['Falso marcaje'] = (alarms['Falso marcaje'] || 0) + e.falses;
+  }
 
   const avgs = {};
   for (const [k] of PILLARS) {

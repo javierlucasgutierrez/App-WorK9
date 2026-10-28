@@ -1,17 +1,22 @@
 // Impacto K9 · Pista — etapa 1: fichas de perro, registro rápido de sesión y copia de seguridad.
 
 const DEFAULTS = {
-  // type: 'mordida' (entrada, mordida y corte), 'tecnico' (notas de los tres pilares) o 'fisico' (minutos e intensidad).
+  // type: 'mordida' (entrada, mordida y corte), 'tecnico' (notas de los tres pilares),
+  // 'deteccion' (escondites, encontrados, falsos marcajes y tipo de marcaje) o 'fisico' (minutos e intensidad).
   exGroups: [
     { name: 'Mordida y defensa', type: 'mordida', items: ['Marcaje', 'Ataque frontal', 'Ataque lanzado', 'Ataque con huida', 'Ataque detenido', 'Defensa del guía', 'Guarda', 'Guarda de objeto', 'Búsqueda y ladrido', 'Escolta', 'Conducción', 'Cacheo'] },
     { name: 'Obediencia', type: 'tecnico', items: ['Obediencia', 'Posiciones', 'Junto', 'Rechazo de comida', 'Envío'] },
     { name: 'Saltos', type: 'tecnico', items: ['Salto de valla', 'Palizada', 'Salto de longitud'] },
-    { name: 'Detección y olfato', type: 'tecnico', items: ['Detección', 'Rastreo', 'Búsqueda de objetos'] },
+    { name: 'Detección', type: 'deteccion', items: ['Detección', 'Búsqueda en vehículos', 'Búsqueda en inmuebles', 'Búsqueda en equipajes', 'Búsqueda en personas', 'Discriminación de distractores'] },
+    { name: 'C-IED', type: 'deteccion', items: ['Búsqueda en ruta', 'Búsqueda en área abierta', 'Búsqueda en zona urbana', 'Trabajo a distancia', 'Dirección a distancia', 'Marcaje pasivo a distancia'] },
+    { name: 'Rescate', type: 'deteccion', items: ['Búsqueda en grandes áreas', 'Búsqueda en escombros', 'Venteo', 'Rastreo de persona', 'Ladrido de aviso', 'Superficies inestables'] },
+    { name: 'Olfato', type: 'tecnico', items: ['Rastreo', 'Búsqueda de objetos'] },
     { name: 'Trabajo mental', type: 'tecnico', items: ['Foco activo', 'Frustración controlada', 'Autocontrol', 'Juegos de olfato'] },
     { name: 'Otras actividades', type: 'tecnico', items: ['Discos', 'Agility'] },
     { name: 'Trabajo físico', type: 'fisico', items: ['Calentamiento', 'Carrera / resistencia', 'Fuerza', 'Propiocepción', 'Natación', 'Estiramientos'] },
   ],
-  dogTypes: ['Mascota', 'Ring francés', 'Seguridad y combate'],
+  dogTypes: ['Mascota', 'Ring francés', 'Seguridad y combate', 'Detección', 'C-IED', 'Rescate'],
+  marks: ['Marcaje pasivo limpio', 'Marcaje dudoso', 'Marcaje activo (rasca o muerde)', 'Ladrido de aviso', 'Sin marcaje'],
   intensities: ['Suave', 'Media', 'Alta'],
   tools: ['Piquete móvil', 'Piquete fijo', 'Trabajo con elástico', 'Libre'],
   entries: ['Entrada limpia', 'Con rebote', 'Con choque'],
@@ -23,7 +28,7 @@ const DEFAULTS = {
   lastBackup: null,
 };
 // Respuestas que se marcan en rojo en el historial.
-const BAD = new Set(['Con choque', 'Se queda con la presa', 'Inestable']);
+const BAD = new Set(['Con choque', 'Se queda con la presa', 'Inestable', 'Marcaje activo (rasca o muerde)', 'Sin marcaje']);
 const PILLARS = [['intention', 'Intención'], ['precision', 'Precisión'], ['control', 'Control']];
 
 let settings = { ...DEFAULTS };
@@ -265,12 +270,13 @@ function sessionCard(s) {
 }
 
 function exerciseSummary(e) {
-  const tags = [e.entry, e.bite && e.bite !== 'No aplica' ? e.bite : '', e.cut && 'Corte: ' + e.cut]
+  const tags = [e.mark, e.falses ? `${e.falses} falso${e.falses > 1 ? 's' : ''} marcaje${e.falses > 1 ? 's' : ''}` : '', e.entry, e.bite && e.bite !== 'No aplica' ? e.bite : '', e.cut && 'Corte: ' + e.cut]
     .filter(Boolean)
-    .map((t) => `<span class="tag${BAD.has(t.replace('Corte: ', '')) ? ' bad' : ''}">${esc(t)}</span>`)
+    .map((t) => `<span class="tag${BAD.has(t.replace('Corte: ', '')) || /falsos? marcaje/.test(t) ? ' bad' : ''}">${esc(t)}</span>`)
     .join('');
   return `<div class="ex-line">
-    <div><b>${esc(e.exercise)}</b> <span class="muted">${esc([e.tool, e.reps ? e.reps + ' rep.' : '', e.minutes ? e.minutes + ' min' : '', e.intensity && 'Intensidad ' + e.intensity.toLowerCase()].filter(Boolean).join(' · '))}</span></div>
+    <div><b>${esc(e.exercise)}</b> <span class="muted">${esc([e.tool, e.reps ? e.reps + ' rep.' : '',
+      e.hides != null ? `${e.found ?? 0} de ${e.hides} encontrados` : '', e.minutes ? e.minutes + ' min' : '', e.intensity && 'Intensidad ' + e.intensity.toLowerCase()].filter(Boolean).join(' · '))}</span></div>
     ${e.phaseName ? `<div class="muted" style="font-size:.85rem">${esc(e.phaseName)}</div>` : ''}
     ${exType(e.exercise) === 'fisico' && !e.intention ? '' : `<div class="pillars">${PILLARS.map(([k, l]) => `<div class="pill">${l}<b>${e[k] || '–'}</b></div>`).join('')}</div>`}
     ${tags ? `<div style="margin-top:6px">${tags}</div>` : ''}
@@ -490,8 +496,12 @@ async function viewSession({ dogId, sessionId }) {
       <div class="group only-fisico"><div class="glabel">Minutos</div>
         <div class="stepper"><button type="button" data-step="-5" data-for="minutes">−</button><output id="minutes">${e.minutes ?? 10}</output><button type="button" data-step="5" data-for="minutes">＋</button></div>
       </div>
+      ${[['hides', 'Escondites puestos', e.hides ?? 3], ['found', 'Encontrados', e.found ?? 0], ['falses', 'Falsos marcajes', e.falses ?? 0]].map(([k, l, v]) =>
+        `<div class="group only-deteccion"><div class="glabel">${l}</div>
+          <div class="stepper"><button type="button" data-step="-1" data-for="${k}">−</button><output id="${k}">${v}</output><button type="button" data-step="1" data-for="${k}">＋</button></div></div>`).join('')}
+      <div class="group only-deteccion"><div class="glabel">Marcaje</div>${chips('mark', settings.marks, e.mark)}</div>
       <div class="group only-fisico"><div class="glabel">Intensidad</div>${chips('intensity', settings.intensities, e.intensity)}</div>
-      ${PILLARS.map(([k, l]) => `<div class="group only-mordida only-tecnico"><div class="glabel">${l}</div>${chips(k, ['1', '2', '3', '4', '5'], e[k] ? String(e[k]) : '', 'scores')}</div>`).join('')}
+      ${PILLARS.map(([k, l]) => `<div class="group only-mordida only-tecnico only-deteccion"><div class="glabel">${l}</div>${chips(k, ['1', '2', '3', '4', '5'], e[k] ? String(e[k]) : '', 'scores')}</div>`).join('')}
       <div class="group only-mordida"><div class="glabel">Entrada</div>${chips('entry', settings.entries, e.entry)}</div>
       <div class="group only-mordida"><div class="glabel">Mordida</div>${chips('bite', settings.bites, e.bite)}</div>
       <div class="group only-mordida"><div class="glabel">Reacción al corte</div>${chips('cut', settings.cuts, e.cut)}</div>
@@ -568,7 +578,7 @@ async function viewSession({ dogId, sessionId }) {
     if (sa) sa.onclick = () => {
       showAll = true;
       draft.note = $('#exNote').value;
-      for (const k of ['reps', 'minutes']) draft[k] = +$('#' + k).textContent;
+      for (const k of ['reps', 'minutes', 'hides', 'found', 'falses']) draft[k] = +$('#' + k).textContent;
       render(); // se redibuja con lo ya marcado (pending)
     };
 
@@ -579,13 +589,15 @@ async function viewSession({ dogId, sessionId }) {
       draft.note = $('#exNote').value.trim();
       // Solo se guarda lo que corresponde a este tipo de ejercicio.
       const type = exType(draft.exercise);
-      if (type === 'fisico') {
-        draft.minutes = +$('#minutes').textContent;
-        for (const k of ['tool', 'reps', 'entry', 'bite', 'cut', 'intention', 'precision', 'control']) delete draft[k];
-      } else {
-        draft.reps = +$('#reps').textContent;
-        delete draft.minutes; delete draft.intensity;
-        if (type === 'tecnico') for (const k of ['tool', 'entry', 'bite', 'cut']) delete draft[k];
+      const FIELDS = {
+        mordida: ['tool', 'reps', 'intention', 'precision', 'control', 'entry', 'bite', 'cut'],
+        tecnico: ['reps', 'intention', 'precision', 'control'],
+        deteccion: ['hides', 'found', 'falses', 'mark', 'intention', 'precision', 'control'],
+        fisico: ['minutes', 'intensity'],
+      }[type];
+      for (const k of ['reps', 'minutes', 'hides', 'found', 'falses']) if (FIELDS.includes(k)) draft[k] = +$('#' + k).textContent;
+      for (const k of ['tool', 'reps', 'minutes', 'intensity', 'hides', 'found', 'falses', 'mark', 'intention', 'precision', 'control', 'entry', 'bite', 'cut']) {
+        if (!FIELDS.includes(k)) delete draft[k];
       }
       if (editing === -1) session.exercises.push(draft); else session.exercises[editing] = draft;
       await persist();
@@ -730,7 +742,7 @@ async function viewSettings() {
     ${listEditor('dogTypes', 'Tipos de perro')}
     ${listEditor('bites', 'Opciones de mordida')}
     ${listEditor('levels', 'Niveles del perro')}
-    <p class="muted" style="font-size:.8rem;margin-top:30px">Impacto K9 · Pista — versión 3</p>
+    <p class="muted" style="font-size:.8rem;margin-top:30px">Impacto K9 · Pista — versión 4</p>
   `;
 
   $('#doBackup').onclick = doBackup;
@@ -866,6 +878,11 @@ async function loadSettings() {
   settings = { ...DEFAULTS, ...(saved || {}) };
   delete settings.key;
   delete settings.exercises; // lista antigua sin grupos
+  // Añade los grupos y opciones nuevos a ajustes guardados con versiones anteriores.
+  const old = settings.exGroups.find((g) => g.name === 'Detección y olfato');
+  if (old) { old.name = 'Olfato'; old.items = old.items.filter((i) => i !== 'Detección'); }
+  for (const g of DEFAULTS.exGroups) if (!settings.exGroups.some((x) => x.name === g.name)) settings.exGroups.push(g);
+  for (const t of DEFAULTS.dogTypes) if (!settings.dogTypes.includes(t)) settings.dogTypes.push(t);
   settings.exGroups = JSON.parse(JSON.stringify(settings.exGroups));
 }
 

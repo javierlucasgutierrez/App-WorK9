@@ -179,9 +179,10 @@ details.card summary { font-weight: 800; cursor: pointer; min-height: 40px; }
 .btn[disabled] { opacity: .35; }
 
 /* Campos según el tipo de ejercicio */
-#exForm .only-mordida, #exForm .only-tecnico, #exForm .only-fisico { display: none; }
+#exForm .only-mordida, #exForm .only-tecnico, #exForm .only-deteccion, #exForm .only-fisico { display: none; }
 #exForm[data-type="mordida"] .only-mordida,
 #exForm[data-type="tecnico"] .only-tecnico,
+#exForm[data-type="deteccion"] .only-deteccion,
 #exForm[data-type="fisico"] .only-fisico { display: block; }
 #exForm:not([data-type=""]) .only-none { display: none; }
 .chip-head { flex: 1 1 100%; margin: 8px 0 0; font-size: .85rem; font-weight: 800; color: var(--muted); text-transform: uppercase; letter-spacing: .03em; }
