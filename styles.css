@@ -198,3 +198,23 @@ details.card summary { font-weight: 800; cursor: pointer; min-height: 40px; }
   padding: 16px; background: rgba(0, 0, 0, .6); }
 .modal-box { width: 100%; max-width: 480px; padding: 18px; border-radius: 18px; background: var(--bg); color: var(--text); border: 3px solid var(--line); }
 .modal-msg { white-space: pre-wrap; font-size: 1.1rem; font-weight: 700; margin: 0 0 8px; }
+
+/* Recursos: cuadro de niveles por situación */
+.res-head, .res-row { display: grid; grid-template-columns: minmax(0, 1fr) repeat(5, 44px); gap: 6px; align-items: center; }
+.res-head { font-weight: 800; color: var(--muted); text-align: center; font-size: .85rem; margin-bottom: 4px; }
+.res-row { padding: 8px 0; border-top: 1px solid var(--line); color: var(--text); text-decoration: none; min-height: 56px; }
+.res-name { font-weight: 700; min-width: 0; overflow-wrap: anywhere; hyphens: auto; }
+.cell { display: inline-flex; align-items: center; justify-content: center; width: 44px; height: 40px; flex: none;
+  border-radius: 10px; border: 2px solid var(--line); font-size: .8rem; font-weight: 800; font-variant-numeric: tabular-nums; }
+.cell.l0 { background: var(--card); color: var(--muted); }
+.cell.l1 { background: #e01e1e; color: #fff; border-color: #e01e1e; }
+.cell.l2 { background: #f08a00; color: #000; border-color: #f08a00; }
+.cell.l3 { background: #9bd65a; color: #000; border-color: #9bd65a; }
+.cell.l4 { background: #1bb34a; color: #fff; border-color: #1bb34a; }
+details.legend { margin: 10px 0; }
+details.legend summary { font-weight: 700; min-height: 44px; display: flex; align-items: center; cursor: pointer; }
+.legend .cell { width: 28px; height: 22px; vertical-align: middle; margin: 2px 0; }
+.chips.one-col .chip { flex-basis: 100%; text-align: left; }
+.crit { padding: 8px 0; border-top: 1px solid var(--line); }
+.crit-name { font-weight: 800; margin-bottom: 6px; }
+.chips.checks .chip { flex: 1 1 0; min-width: 0; }

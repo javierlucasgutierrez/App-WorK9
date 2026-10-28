@@ -6,7 +6,7 @@ out = pathlib.Path(sys.argv[1])
 html = (root / 'index.html').read_text()
 body = re.search(r'<body>(.*?)<script', html, re.S).group(1)
 css = (root / 'styles.css').read_text()
-js = ''.join((root / f).read_text() for f in ['db.js', 'phases.js', 'app.js'])
+js = ''.join((root / f).read_text() for f in ['db.js', 'resources.js', 'phases.js', 'app.js'])
 assert '</script' not in js
 
 extra_css = """

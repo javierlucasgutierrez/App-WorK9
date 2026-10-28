@@ -16,6 +16,9 @@ const DEFAULTS = {
     { name: 'Trabajo físico', type: 'fisico', items: ['Calentamiento', 'Carrera / resistencia', 'Fuerza', 'Propiocepción', 'Natación', 'Estiramientos'] },
   ],
   dogTypes: ['Mascota', 'Ring francés', 'Seguridad y combate', 'Detección', 'C-IED', 'Rescate'],
+  resources: ['Sentarse', 'Tumbarse', 'De pie', 'Venir (llamada)', 'Junto', 'Quieto (permanencia)', 'Soltar', 'Vuelta al guía',
+    'Foco activo', 'Morder arriba', 'Mordida profunda y estable', 'Cambio de presa', 'Ladrido en marcaje'],
+  contexts: ['Con el guía, sin distracciones', 'En pista, sin figurante', 'Figurante a distancia', 'Delante del figurante (presa a la vista)', 'Figurante activo / con presión'],
   marks: ['Marcaje pasivo limpio', 'Marcaje dudoso', 'Marcaje activo (rasca o muerde)', 'Ladrido de aviso', 'Sin marcaje'],
   intensities: ['Suave', 'Media', 'Alta'],
   tools: ['Piquete móvil', 'Piquete fijo', 'Trabajo con elástico', 'Libre'],
@@ -28,7 +31,7 @@ const DEFAULTS = {
   lastBackup: null,
 };
 // Respuestas que se marcan en rojo en el historial.
-const BAD = new Set(['Con choque', 'Se queda con la presa', 'Inestable', 'Marcaje activo (rasca o muerde)', 'Sin marcaje']);
+const BAD = new Set(['No', 'Con choque', 'Se queda con la presa', 'Inestable', 'Marcaje activo (rasca o muerde)', 'Sin marcaje']);
 const ALL_FIELDS = ['tool', 'reps', 'minutes', 'intensity', 'pmode', 'speed', 'series', 'seriesTime', 'rest', 'hrAvg', 'hrMax', 'link',
   'hides', 'found', 'falses', 'mark', 'intention', 'precision', 'control', 'entry', 'bite', 'cut'];
 const numInput = (id, value, placeholder, decimal) =>
@@ -211,7 +214,7 @@ const SECURITY = ['Marcaje', 'Ataque frontal', 'Ataque lanzado', 'Ataque con hui
   'Escolta', 'Conducción', 'Cacheo', 'Obediencia', 'Detección'];
 const BASE = ['Foco activo', 'Frustración controlada', 'Autocontrol', 'Calentamiento', 'Carrera / resistencia', 'Fuerza', 'Propiocepción', 'Estiramientos'];
 const STARTER_DOGS = [
-  { name: 'Aston', type: 'Mascota', exercises: ['Obediencia', 'Posiciones', 'Junto', 'Juegos de olfato', 'Búsqueda de objetos', 'Discos', ...BASE] },
+  { name: 'Aston', type: 'Mascota', resources: ['Sentarse', 'Tumbarse', 'De pie', 'Venir (llamada)', 'Junto', 'Quieto (permanencia)', 'Soltar', 'Foco activo'], exercises: ['Obediencia', 'Posiciones', 'Junto', 'Juegos de olfato', 'Búsqueda de objetos', 'Discos', ...BASE] },
   { name: 'Ares', type: 'Ring francés', exercises: [...RING, ...BASE] },
   { name: 'Batman', type: 'Seguridad y combate', exercises: [...SECURITY, ...BASE] },
   { name: 'Dardo', type: 'Seguridad y combate', exercises: [...SECURITY, ...BASE] },
@@ -256,6 +259,7 @@ async function viewDog(id) {
     <a class="btn small" href="#/perro/${dog.id}/editar">✏️ Editar ficha</a>
 
     ${plansSection(dog, sessions)}
+    ${resourcesSection(dog, sessions)}
 
     <h2>Sesiones (${sessions.length})</h2>
     ${sessions.length ? sessions.map(sessionCard).join('') : '<p class="muted">Aún no hay sesiones.</p>'}
@@ -269,7 +273,8 @@ function sessionCard(s) {
   return `<a class="card" href="#/sesion/${s.id}">
     <div style="font-weight:800">${fmtDate(s.date)}</div>
     ${who ? `<div class="muted">${esc(who)}</div>` : ''}
-    ${s.exercises.map(exerciseSummary).join('')}
+    ${s.exercises.map((e) => exerciseSummary(e)).join('')}
+    ${(s.resources || []).map(resourceSummary).join('')}
   </a>`;
 }
 
@@ -297,6 +302,8 @@ function exerciseSummary(e, linkable) {
     ${/^https?:\/\//i.test(e.link || '') ? (linkable ? `<div><a href="${esc(e.link)}" target="_blank" rel="noopener" class="ext-link">⌚ Ver actividad del reloj ↗</a></div>` : '<div class="muted">⌚ Actividad del reloj vinculada</div>') : ''}
     ${exType(e.exercise) === 'fisico' && !e.intention ? '' : `<div class="pillars">${PILLARS.map(([k, l]) => `<div class="pill">${l}<b>${e[k] || '–'}</b></div>`).join('')}</div>`}
     ${tags ? `<div style="margin-top:6px">${tags}</div>` : ''}
+    ${Object.keys(e.checks || {}).length ? `<div style="margin-top:6px">${Object.entries(e.checks).map(([c, v]) =>
+      `<span class="tag${v === 'No' ? ' bad' : ''}">${v === 'Sí' ? '✔' : v === 'No' ? '✘' : '½'} ${esc(c)}</span>`).join('')}</div>` : ''}
     ${e.note ? `<div class="muted" style="margin-top:4px;white-space:pre-wrap">📝 ${esc(e.note)}</div>` : ''}
     ${e.audio ? `<div class="muted">🎙 Nota de voz</div>` : ''}
   </div>`;
@@ -443,6 +450,10 @@ async function viewSession({ dogId, sessionId }) {
     const prev = sortSessions(await DB.byDog(dogId))[0];
     session = { id: uid(), dogId, date: today(), guide: prev?.guide || '', figurant: prev?.figurant || '', exercises: [] };
   }
+  session.resources = session.resources || [];
+  const dogSessions = await DB.byDog(dogId);
+  let resEditing = null; // índice del recurso en edición; -1 = nuevo
+  const hasContent = () => session.exercises.length || session.resources.length;
   setHeader(isNew ? 'Sesión · ' + dog.name : 'Editar sesión', true);
 
   let editing = isNew ? -1 : null; // índice del ejercicio en edición; -1 = nuevo; null = ninguno
@@ -479,9 +490,18 @@ async function viewSession({ dogId, sessionId }) {
           <div class="row"><button class="btn small" data-edit="${i}">✏️ Cambiar</button><button class="btn small danger" data-del="${i}">Quitar</button></div>
         </div>`).join('')}
       ${editing === -1 ? exerciseForm(pending || {}) : ''}
-      ${editing === null ? `
-        <button class="btn primary" id="addEx">＋ ${session.exercises.length ? 'Otro ejercicio' : 'Añadir ejercicio'}</button>
-        ${session.exercises.length ? `<a class="btn" href="#/perro/${dog.id}" id="finish">✔ Terminar sesión</a>` : ''}
+      ${session.resources.length ? `<h2>Recursos (${session.resources.length})</h2>` : ''}
+      ${session.resources.map((r, i) => i === resEditing ? resourceForm(r) : `
+        <div class="card">${resourceSummary(r)}
+          <div class="row"><button class="btn small" data-redit="${i}">✏️ Cambiar</button><button class="btn small danger" data-rdel="${i}">Quitar</button></div>
+        </div>`).join('')}
+      ${resEditing === -1 ? resourceForm({}) : ''}
+      ${editing === null && resEditing === null ? `
+        <div class="row">
+          <button class="btn primary" id="addEx">＋ ${session.exercises.length ? 'Otro ejercicio' : 'Ejercicio'}</button>
+          <button class="btn primary" id="addRes">＋ Recurso</button>
+        </div>
+        ${hasContent() ? `<a class="btn" href="#/perro/${dog.id}" id="finish">✔ Terminar sesión</a>` : ''}
         ${!isNew ? '<button class="btn danger" id="delSession">Borrar sesión</button>' : ''}` : ''}
     `;
     bind();
@@ -493,7 +513,81 @@ async function viewSession({ dogId, sessionId }) {
     return `<select id="${id}"><option value="">—</option>${all.map((n) => `<option ${n === current ? 'selected' : ''}>${esc(n)}</option>`).join('')}</select>`;
   }
 
-  const phaseInfo = (e) => (e.phaseName ? `<div class="phase-info">▶ ${esc(e.phaseName)}</div>` : '');
+  const phaseOf = (e) => getPlan(dog, e.exercise)?.phases.find((p) => p.id === e.phaseId);
+
+  // Lo que toca en la fase actual: objetivo, recursos que necesita y criterios para marcar.
+  function phaseInfo(e) {
+    if (!e.phaseName) return '';
+    const ph = phaseOf(e);
+    const crit = criteriaList(ph);
+    return `<div class="phase-info">▶ ${esc(e.phaseName)}
+        ${ph?.goal ? `<div style="font-weight:400;margin-top:4px">${esc(ph.goal)}</div>` : ''}
+        ${(ph?.requires || []).length ? requirementsHtml(dog, dogSessions, ph.requires) : ''}
+      </div>
+      ${crit.length ? `<div class="group"><div class="glabel">Criterios de la fase</div>${crit.map((c, i) =>
+        `<div class="crit"><div class="crit-name">${esc(c)}</div>${chips('crit:' + i, CHECKS, e.checks?.[c], 'checks')}</div>`).join('')}</div>` : ''}`;
+  }
+
+  function resourceForm(r) {
+    const list = dogResources(dog);
+    const opts = r.name && !list.includes(r.name) ? [...list, r.name] : list;
+    return `<div class="card" id="resForm">
+      <div class="group"><div class="glabel">Recurso</div>${chips('res', opts, r.name)}</div>
+      <div class="group"><div class="glabel">Situación</div>${chips('ctx', settings.contexts.map((_, i) => ctxLabel(i)), r.ctx != null ? ctxLabel(r.ctx) : '', 'one-col')}</div>
+      <div id="resLevel"></div>
+      <div class="group"><div class="glabel">Intentos</div>
+        <div class="stepper"><button type="button" data-rstep="-1" data-for="tries">−</button><output id="tries">${r.tries ?? 5}</output><button type="button" data-rstep="1" data-for="tries">＋</button></div></div>
+      <div class="group"><div class="glabel">Aciertos</div>
+        <div class="stepper"><button type="button" data-rstep="-1" data-for="hits">−</button><output id="hits">${r.hits ?? 0}</output><button type="button" data-rstep="1" data-for="hits">＋</button></div></div>
+      <label class="field">Nota<input id="resNote" value="${esc(r.note)}" placeholder="Opcional" autocomplete="off"></label>
+      <button type="button" class="btn primary" id="saveRes">Guardar recurso</button>
+      <button type="button" class="btn small" id="cancelRes">Cancelar</button>
+    </div>`;
+  }
+
+  function bindResForm() {
+    const f = $('#resForm');
+    if (!f) return;
+    const r = resEditing >= 0 ? { ...session.resources[resEditing] } : {};
+    const showLevel = () => {
+      $('#resLevel').innerHTML = r.name && r.ctx != null
+        ? (() => { const st = resourceLevel(dog, dogSessions, r.name, r.ctx); return `<div class="phase-info" style="display:flex;gap:10px;align-items:center">${cell(st)} Ahora: ${LEVELS[st.level]}${st.tries ? ' (' + pctText(st) + ')' : ''}</div>`; })()
+        : '';
+    };
+    showLevel();
+    f.onclick = (ev) => {
+      const b = ev.target.closest('.chip');
+      if (b) {
+        const group = b.closest('.chips');
+        $$('.chip', group).forEach((c) => c.setAttribute('aria-pressed', String(c === b)));
+        if (group.dataset.group === 'res') r.name = b.dataset.value;
+        else r.ctx = parseInt(b.dataset.value, 10) - 1;
+        showLevel();
+        return;
+      }
+      const st = ev.target.closest('[data-rstep]');
+      if (st) {
+        const out = $('#' + st.dataset.for);
+        out.textContent = Math.max(0, +out.textContent + +st.dataset.rstep);
+        const tries = $('#tries'), hits = $('#hits');
+        if (+hits.textContent > +tries.textContent) (st.dataset.for === 'hits' ? tries : hits).textContent = st.dataset.for === 'hits' ? hits.textContent : tries.textContent;
+      }
+    };
+    $('#saveRes').onclick = async () => {
+      if (!r.name || r.ctx == null) { toast('Elige el recurso y la situación'); return; }
+      r.tries = +$('#tries').textContent;
+      r.hits = +$('#hits').textContent;
+      r.note = $('#resNote').value.trim();
+      if (!r.note) delete r.note;
+      if (resEditing === -1) session.resources.push(r); else session.resources[resEditing] = r;
+      await persist();
+      resEditing = null;
+      toast('Recurso guardado');
+      render();
+      window.scrollTo({ top: document.body.scrollHeight, behavior: 'smooth' });
+    };
+    $('#cancelRes').onclick = () => { resEditing = null; render(); };
+  }
 
   // Pasa al borrador lo escrito en contadores y casillas.
   function readFields(draft) {
@@ -564,19 +658,29 @@ async function viewSession({ dogId, sessionId }) {
     <button type="button" class="btn small danger" id="delAudio">Borrar audio</button>`;
 
   function bind() {
-    $('#sDate').onchange = (ev) => { session.date = ev.target.value || today(); if (session.exercises.length) persist(); };
+    $('#sDate').onchange = (ev) => { session.date = ev.target.value || today(); if (hasContent()) persist(); };
     for (const [id, key] of [['sGuide', 'guide'], ['sFig', 'figurant']]) {
-      $('#' + id).onchange = (ev) => { session[key] = ev.target.value.trim(); if (session.exercises.length) persist(); };
+      $('#' + id).onchange = (ev) => { session[key] = ev.target.value.trim(); if (hasContent()) persist(); };
     }
     $$('[data-edit]').forEach((b) => (b.onclick = () => { editing = +b.dataset.edit; render(); scrollToForm(); }));
     $$('[data-del]').forEach((b) => (b.onclick = async () => {
       if (!await ask('¿Quitar este ejercicio?')) return;
       session.exercises.splice(+b.dataset.del, 1);
-      if (session.exercises.length) await persist(); else await DB.del('sessions', session.id);
+      if (hasContent()) await persist(); else await DB.del('sessions', session.id);
+      render();
+    }));
+    $$('[data-redit]').forEach((b) => (b.onclick = () => { resEditing = +b.dataset.redit; render(); $('#resForm').scrollIntoView({ behavior: 'smooth' }); }));
+    $$('[data-rdel]').forEach((b) => (b.onclick = async () => {
+      if (!await ask('¿Quitar este recurso?')) return;
+      session.resources.splice(+b.dataset.rdel, 1);
+      if (hasContent()) await persist(); else await DB.del('sessions', session.id);
       render();
     }));
     const add = $('#addEx');
     if (add) add.onclick = () => { editing = -1; render(); scrollToForm(); };
+    const addR = $('#addRes');
+    if (addR) addR.onclick = () => { resEditing = -1; render(); $('#resForm').scrollIntoView({ behavior: 'smooth', block: 'start' }); };
+    bindResForm();
     const delS = $('#delSession');
     if (delS) delS.onclick = async () => {
       if (!await ask('¿Borrar la sesión entera?')) return;
@@ -593,11 +697,20 @@ async function viewSession({ dogId, sessionId }) {
     const draft = pending || { ...base };
     pending = draft;
 
-    $$('.chips', form).forEach((group) => {
-      group.onclick = (ev) => {
+    // Un solo manejador para todo el formulario: los criterios cambian al elegir otro ejercicio.
+    form.onclick = (ev) => {
         const b = ev.target.closest('.chip');
         if (!b) return;
+        const group = b.closest('.chips');
         const key = group.dataset.group;
+        if (key.startsWith('crit:')) {
+          const crit = criteriaList(phaseOf(draft))[+key.split(':')[1]];
+          const on = b.getAttribute('aria-pressed') !== 'true';
+          $$('.chip', group).forEach((c) => c.setAttribute('aria-pressed', String(on && c === b)));
+          draft.checks = { ...(draft.checks || {}) };
+          if (on) draft.checks[crit] = b.dataset.value; else delete draft.checks[crit];
+          return;
+        }
         const on = b.getAttribute('aria-pressed') !== 'true';
         $$('.chip', group).forEach((c) => c.setAttribute('aria-pressed', 'false'));
         b.setAttribute('aria-pressed', String(on));
@@ -607,14 +720,14 @@ async function viewSession({ dogId, sessionId }) {
           const ph = on ? currentPhase(getPlan(dog, draft.exercise)) : null;
           draft.phaseId = ph?.id || '';
           draft.phaseName = ph ? `Fase ${getPlan(dog, draft.exercise).current + 1}${ph.name ? ': ' + ph.name : ''}` : '';
+          draft.checks = {};
           $('#phaseInfo').innerHTML = phaseInfo(draft);
           form.dataset.type = on ? exType(draft.exercise) : '';
         }
         if (key === 'pmode') {
           form.dataset.pmode = draft.pmode || '';
         }
-      };
-    });
+    };
     $$('[data-step]', form).forEach((b) => (b.onclick = () => {
       const out = $('#' + b.dataset.for);
       out.textContent = Math.max(0, +out.textContent + +b.dataset.step);
@@ -645,6 +758,7 @@ async function viewSession({ dogId, sessionId }) {
       for (const k of Object.keys(draft)) {
         if (ALL_FIELDS.includes(k) && (!FIELDS.includes(k) || draft[k] === '' || draft[k] == null)) delete draft[k];
       }
+      if (!Object.keys(draft.checks || {}).length) delete draft.checks;
       if (editing === -1) session.exercises.push(draft); else session.exercises[editing] = draft;
       await persist();
       editing = null;
@@ -786,9 +900,12 @@ async function viewSettings() {
     <p class="muted" style="font-size:.85rem">Una opción por línea. Se guardan al salir del cuadro.</p>
     ${settings.exGroups.map((g, i) => `<label class="field">${esc(g.name)}<textarea data-exgroup="${i}" rows="5">${esc(g.items.join('\n'))}</textarea></label>`).join('')}
     ${listEditor('dogTypes', 'Tipos de perro')}
+    ${listEditor('resources', 'Recursos')}
+    <label class="field">Situaciones, de más fácil a más difícil<span class="hint">Los registros guardan el número de la situación: si cambias el orden, cambia también en los registros antiguos.</span>
+      <textarea data-list="contexts" rows="5">${esc(settings.contexts.join('\n'))}</textarea></label>
     ${listEditor('bites', 'Opciones de mordida')}
     ${listEditor('levels', 'Niveles del perro')}
-    <p class="muted" style="font-size:.8rem;margin-top:30px">Impacto K9 · Pista — versión 5</p>
+    <p class="muted" style="font-size:.8rem;margin-top:30px">Impacto K9 · Pista — versión 6</p>
   `;
 
   $('#doBackup').onclick = doBackup;
@@ -942,6 +1059,8 @@ async function route() {
     if (!parts.length) await viewHome();
     else if (parts[0] === 'perro' && parts[2] === 'editar') await viewDogEdit(parts[1]);
     else if (parts[0] === 'perro' && parts[2] === 'fases') await viewPlan(parts[1], parts[3]);
+    else if (parts[0] === 'perro' && parts[2] === 'recurso') await viewResource(parts[1], parts[3]);
+    else if (parts[0] === 'perro' && parts[2] === 'recursos') await viewResourcesPick(parts[1]);
     else if (parts[0] === 'perro') await viewDog(parts[1]);
     else if (parts[0] === 'registrar' && parts[1]) await viewSession({ dogId: parts[1] });
     else if (parts[0] === 'registrar') await viewPickDog();

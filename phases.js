@@ -12,7 +12,7 @@ function currentPhase(plan) {
 }
 
 // Mira las últimas sesiones del ejercicio en la fase actual y devuelve el color con sus motivos.
-function semaphore(plan, sessions, exercise) {
+function semaphore(plan, sessions, exercise, dog) {
   const phase = currentPhase(plan);
   if (!phase) return { color: 'grey', title: 'Sin fases', reasons: [] };
   const n = plan.minSessions || PLAN_DEFAULTS.minSessions;
@@ -23,7 +23,11 @@ function semaphore(plan, sessions, exercise) {
     .filter((s) => s.entries.length)
     .slice(0, n);
 
-  if (!recent.length) return { color: 'grey', title: 'Sin sesiones en esta fase', reasons: [], count: 0, n };
+  // Recursos que la fase necesita y que todavía no hace solo.
+  const missing = (phase.requires || []).map((r) => ({ r, st: resourceLevel(dog, sessions, r.res, r.ctx) })).filter((x) => x.st.level < 3)
+    .map((x) => `Falta recurso: ${x.r.res} · ${ctxName(x.r.ctx)} (${LEVELS[x.st.level].toLowerCase()})`);
+
+  if (!recent.length) return { color: 'grey', title: 'Sin sesiones en esta fase', reasons: missing, count: 0, n };
 
   const reasons = [];
   const all = recent.flatMap((s) => s.entries);
@@ -55,6 +59,13 @@ function semaphore(plan, sessions, exercise) {
     else if (a < min - 1) { reasons.push(`${label}: ${fmtAvg(a)} (pides ${min})`); worse('red'); }
     else if (a < min) { reasons.push(`${label}: ${fmtAvg(a)} (pides ${min})`); worse('yellow'); }
   }
+  for (const c of criteriaList(phase)) {
+    const vals = all.map((e) => e.checks?.[c]).filter(Boolean);
+    if (!vals.length) { reasons.push(`Sin marcar: ${c}`); worse('yellow'); }
+    else if (vals.includes('No')) { reasons.push(`No cumple: ${c}`); worse('red'); }
+    else if (vals.includes('A medias')) { reasons.push(`A medias: ${c}`); worse('yellow'); }
+  }
+  if (missing.length) { reasons.push(...missing); worse('yellow'); }
   if (recent.length < n) {
     reasons.unshift(`Lleva ${recent.length} de ${n} sesiones en esta fase`);
     worse('yellow');
@@ -76,12 +87,13 @@ function plansSection(dog, sessions) {
     ${plans.length ? '' : '<p class="muted">Aún no has creado fases para este perro.</p>'}
     ${plans.map(([ex, plan]) => {
       const ph = currentPhase(plan);
-      const sem = semaphore(plan, sessions, ex);
+      const sem = semaphore(plan, sessions, ex, dog);
       return `<a class="card plan-card" href="#/perro/${dog.id}/fases/${encodeURIComponent(ex)}">
         ${dot(sem.color)}
         <div style="flex:1;min-width:0">
           <div style="font-weight:800;font-size:1.15rem">${esc(ex)}</div>
           <div>Fase ${plan.current + 1} de ${plan.phases.length}${ph?.name ? ': ' + esc(ph.name) : ''}</div>
+          ${ph?.goal ? `<div style="font-size:.9rem">${esc(ph.goal)}</div>` : ''}
           <div class="muted">${esc(sem.title)}</div>
         </div>
       </a>`;
@@ -99,7 +111,7 @@ async function viewPlan(dogId, exParam) {
   if (!plan) return go('#/perro/' + dog.id);
   setHeader(exercise + ' · ' + dog.name, true);
   const sessions = await DB.byDog(dog.id);
-  const sem = semaphore(plan, sessions, exercise);
+  const sem = semaphore(plan, sessions, exercise, dog);
   const isLast = plan.current >= plan.phases.length - 1;
 
   app.innerHTML = `
@@ -108,14 +120,15 @@ async function viewPlan(dogId, exParam) {
       <div>
         <div style="font-weight:900;font-size:1.2rem">${esc(sem.title)}</div>
         ${sem.reasons.map((r) => `<div>• ${esc(r)}</div>`).join('')}
-        <div class="muted" style="font-size:.85rem;margin-top:4px">Mira las últimas ${plan.minSessions} sesiones de esta fase. Nota mínima: ${plan.minScore} en intención, precisión y control.</div>
+        <div class="muted" style="font-size:.85rem;margin-top:4px">Mira las últimas ${plan.minSessions} sesiones de esta fase: nota mínima ${plan.minScore} en intención, precisión y control, criterios cumplidos y recursos necesarios en «lo hace solo».</div>
       </div>
     </div>
     ${plan.phases.map((ph, i) => `
       <div class="card phase${i === plan.current ? ' current' : ''}${i < plan.current ? ' done' : ''}">
         <div style="font-weight:900">${i < plan.current ? '✔ ' : i === plan.current ? '▶ ' : ''}Fase ${i + 1}${ph.name ? ': ' + esc(ph.name) : ''}</div>
         ${ph.goal ? `<div class="muted" style="margin-top:6px;font-size:.85rem">OBJETIVO</div><div style="white-space:pre-wrap">${esc(ph.goal)}</div>` : ''}
-        ${ph.criteria ? `<div class="muted" style="margin-top:6px;font-size:.85rem">PARA PASAR</div><div style="white-space:pre-wrap">${esc(ph.criteria)}</div>` : ''}
+        ${ph.criteria ? `<div class="muted" style="margin-top:6px;font-size:.85rem">CRITERIOS PARA PASAR</div><ul style="margin:4px 0;padding-left:22px">${criteriaList(ph).map((c) => `<li>${esc(c)}</li>`).join('')}</ul>` : ''}
+        ${(ph.requires || []).length ? requirementsHtml(dog, sessions, ph.requires) : ''}
       </div>`).join('')}
     ${isLast ? '' : `<button class="btn ${sem.color === 'green' ? 'primary' : ''}" id="advance">Pasar a la fase ${plan.current + 2}</button>`}
     ${plan.current > 0 ? `<button class="btn small" id="regress">Volver a la fase ${plan.current}</button>` : ''}
@@ -188,7 +201,13 @@ function editPlan(dog, exercise, template) {
           <div style="font-weight:900">Fase ${i + 1}${i === plan.current && existing ? ' (actual)' : ''}</div>
           <label class="field">Nombre<input data-k="name" value="${esc(ph.name)}" placeholder="Ej.: Entrada limpia al piquete fijo"></label>
           <label class="field">Objetivo<textarea data-k="goal" rows="3">${esc(ph.goal)}</textarea></label>
-          <label class="field">Criterios para pasar<textarea data-k="criteria" rows="3">${esc(ph.criteria)}</textarea></label>
+          <label class="field">Criterios para pasar<span class="hint">Uno por línea. Al registrar se marcará cada uno con Sí / A medias / No. Ej.: Muerde arriba</span>
+            <textarea data-k="criteria" rows="3">${esc(ph.criteria)}</textarea></label>
+          <div class="glabel" style="font-weight:700">Recursos que necesita<span class="hint" style="display:block;font-weight:400;color:var(--muted);font-size:.85rem">Tienen que estar en «lo hace solo» para pasar de fase.</span></div>
+          ${(ph.requires || []).map((r, j) => `<div class="list-edit"><div style="flex:1">${esc(r.res)} · ${esc(ctxLabel(r.ctx))}</div><button type="button" data-rmreq="${i}:${j}" aria-label="Quitar">✕</button></div>`).join('')}
+          <select data-reqres="${i}"><option value="">Recurso…</option>${dogResources(dog).map((r) => `<option>${esc(r)}</option>`).join('')}</select>
+          <select data-reqctx="${i}"><option value="">Situación…</option>${settings.contexts.map((_, k) => `<option value="${k}">${esc(ctxLabel(k))}</option>`).join('')}</select>
+          <button type="button" class="btn small" data-addreq="${i}">＋ Añadir recurso necesario</button>
           <div class="row">
             <button type="button" class="btn small" data-up="${i}" ${i === 0 ? 'disabled' : ''}>↑ Subir</button>
             <button type="button" class="btn small danger" data-rm="${i}" ${plan.phases.length === 1 ? 'disabled' : ''}>Quitar</button>
@@ -198,7 +217,7 @@ function editPlan(dog, exercise, template) {
       <h3>Semáforo</h3>
       <div class="group"><div class="glabel">¿Cuántas sesiones mirar?</div>${chips('minSessions', ['2', '3', '4', '5'], String(plan.minSessions), 'scores')}</div>
       <div class="group"><div class="glabel">Nota mínima en los tres pilares</div>${chips('minScore', ['3', '4', '5'], String(plan.minScore), 'scores')}</div>
-      <p class="muted" style="font-size:.85rem">Se pone en rojo si en esas sesiones hay «Con choque» o «Se queda con la presa», o si algún pilar está más de un punto por debajo.</p>
+      <p class="muted" style="font-size:.85rem">Se pone en rojo si en esas sesiones hay «Con choque», «Se queda con la presa», un falso marcaje, un criterio marcado «No», o si algún pilar está más de un punto por debajo.</p>
       <button class="btn primary" id="savePlan">Guardar fases</button>
       ${existing ? '<button class="btn danger" id="delPlan">Borrar las fases de este ejercicio</button>' : ''}
     `;
@@ -206,6 +225,19 @@ function editPlan(dog, exercise, template) {
       const ph = plan.phases[+card.dataset.phase];
       $$('[data-k]', card).forEach((inp) => (inp.oninput = () => (ph[inp.dataset.k] = inp.value)));
     });
+    $$('[data-addreq]').forEach((b) => (b.onclick = () => {
+      const i = +b.dataset.addreq;
+      const res = $(`[data-reqres="${i}"]`).value, ctx = $(`[data-reqctx="${i}"]`).value;
+      if (!res || ctx === '') { toast('Elige el recurso y la situación'); return; }
+      const ph = plan.phases[i];
+      ph.requires = [...(ph.requires || []).filter((r) => !(r.res === res && r.ctx === +ctx)), { res, ctx: +ctx }];
+      render();
+    }));
+    $$('[data-rmreq]').forEach((b) => (b.onclick = () => {
+      const [i, j] = b.dataset.rmreq.split(':').map(Number);
+      plan.phases[i].requires.splice(j, 1);
+      render();
+    }));
     $$('[data-up]').forEach((b) => (b.onclick = () => {
       const i = +b.dataset.up;
       [plan.phases[i - 1], plan.phases[i]] = [plan.phases[i], plan.phases[i - 1]];
