@@ -46,7 +46,7 @@ function semaphore(plan, sessions, exercise) {
     reasons.push(`«${v}» ${times === 1 ? '1 vez' : times + ' veces'}`);
     worse('red');
   }
-  for (const [k, label] of PILLARS) {
+  for (const [k, label] of exType(exercise) === 'fisico' ? [] : PILLARS) {
     const a = avgs[k];
     if (a === null) { reasons.push(`Falta nota de ${label.toLowerCase()}`); worse('yellow'); }
     else if (a < min - 1) { reasons.push(`${label}: ${fmtAvg(a)} (pides ${min})`); worse('red'); }
@@ -140,11 +140,11 @@ async function viewPlan(dogId, exParam) {
 
 async function viewPlanNew(dog) {
   setHeader('Nuevas fases · ' + dog.name, true);
-  const free = settings.exercises.filter((e) => !getPlan(dog, e));
+  const free = allExercises().filter((e) => !getPlan(dog, e) && (!(dog.exercises || []).length || dog.exercises.includes(e)));
   const others = (await DB.all('dogs')).filter((d) => d.id !== dog.id && Object.keys(d.plans || {}).length);
   app.innerHTML = `
     <p>¿Para qué ejercicio?</p>
-    ${free.length ? chips('newEx', free, '') : '<p class="muted">Ya tienes fases en todos los ejercicios. Puedes añadir más en Ajustes → Listas.</p>'}
+    ${free.length ? exerciseChips('newEx', free, '') : '<p class="muted">Ya tienes fases en todos sus ejercicios.</p>'}
     <div id="copyBox"></div>
   `;
   const group = $('[data-group="newEx"]');

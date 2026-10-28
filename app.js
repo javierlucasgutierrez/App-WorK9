@@ -1,7 +1,18 @@
 // Impacto K9 · Pista — etapa 1: fichas de perro, registro rápido de sesión y copia de seguridad.
 
 const DEFAULTS = {
-  exercises: ['Marcaje', 'Ataque frontal', 'Ataque lanzado', 'Defensa del guía', 'Guarda', 'Búsqueda y ladrido', 'Conducción', 'Obediencia'],
+  // type: 'mordida' (entrada, mordida y corte), 'tecnico' (notas de los tres pilares) o 'fisico' (minutos e intensidad).
+  exGroups: [
+    { name: 'Mordida y defensa', type: 'mordida', items: ['Marcaje', 'Ataque frontal', 'Ataque lanzado', 'Ataque con huida', 'Ataque detenido', 'Defensa del guía', 'Guarda', 'Guarda de objeto', 'Búsqueda y ladrido', 'Escolta', 'Conducción', 'Cacheo'] },
+    { name: 'Obediencia', type: 'tecnico', items: ['Obediencia', 'Posiciones', 'Junto', 'Rechazo de comida', 'Envío'] },
+    { name: 'Saltos', type: 'tecnico', items: ['Salto de valla', 'Palizada', 'Salto de longitud'] },
+    { name: 'Detección y olfato', type: 'tecnico', items: ['Detección', 'Rastreo', 'Búsqueda de objetos'] },
+    { name: 'Trabajo mental', type: 'tecnico', items: ['Foco activo', 'Frustración controlada', 'Autocontrol', 'Juegos de olfato'] },
+    { name: 'Otras actividades', type: 'tecnico', items: ['Discos', 'Agility'] },
+    { name: 'Trabajo físico', type: 'fisico', items: ['Calentamiento', 'Carrera / resistencia', 'Fuerza', 'Propiocepción', 'Natación', 'Estiramientos'] },
+  ],
+  dogTypes: ['Mascota', 'Ring francés', 'Seguridad y combate'],
+  intensities: ['Suave', 'Media', 'Alta'],
   tools: ['Piquete móvil', 'Piquete fijo', 'Trabajo con elástico', 'Libre'],
   entries: ['Entrada limpia', 'Con rebote', 'Con choque'],
   bites: ['Mordida profunda y estable', 'Superficial', 'Remordida', 'Inestable', 'No aplica'],
@@ -16,6 +27,19 @@ const BAD = new Set(['Con choque', 'Se queda con la presa', 'Inestable']);
 const PILLARS = [['intention', 'Intención'], ['precision', 'Precisión'], ['control', 'Control']];
 
 let settings = { ...DEFAULTS };
+
+const allExercises = () => settings.exGroups.flatMap((g) => g.items);
+const exType = (name) => (settings.exGroups.find((g) => g.items.includes(name)) || { type: 'tecnico' }).type;
+
+// Botones de ejercicios agrupados por tipo de trabajo. Solo muestra los de la lista "names".
+function exerciseChips(group, names, selected, multi) {
+  const known = new Set(allExercises());
+  const groups = [...settings.exGroups.map((g) => ({ name: g.name, items: g.items.filter((i) => names.includes(i)) })),
+    { name: 'Otros', items: names.filter((n) => !known.has(n)) }];
+  const isOn = (o) => (multi ? selected.includes(o) : o === selected);
+  return `<div class="chips" data-group="${group}"${multi ? ' data-multi="1"' : ''}>${groups.filter((g) => g.items.length).map((g) =>
+    `<div class="chip-head">${esc(g.name)}</div>${g.items.map((o) => `<button type="button" class="chip" data-value="${esc(o)}" aria-pressed="${isOn(o)}">${esc(o)}</button>`).join('')}`).join('')}</div>`;
+}
 
 // ---------- utilidades ----------
 const $ = (sel, el = document) => el.querySelector(sel);
@@ -95,20 +119,41 @@ async function viewHome() {
 
   app.innerHTML = `
     ${backupBanner(sessions)}
-    ${dogs.length ? '' : '<p class="muted">Todavía no hay perros. Empieza creando su ficha.</p>'}
+    ${dogs.length ? '' : `<p class="muted">Todavía no hay perros.</p>
+      <button class="btn primary" id="starter">Crear las fichas de Aston, Ares, Batman y Dardo</button>`}
     ${dogs.map((d) => `
       <a class="card dog-card" href="#/perro/${d.id}">
         ${photoHtml(d)}
         <div style="flex:1;min-width:0">
           <div class="name">${esc(d.name)}</div>
-          <div class="muted">${esc([d.breed, age(d.birth), d.level].filter(Boolean).join(' · '))}</div>
+          <div class="muted">${esc([d.type, d.breed, age(d.birth), d.level].filter(Boolean).join(' · '))}</div>
           <div class="muted">${last[d.id] ? 'Última sesión: ' + fmtDate(last[d.id]) : 'Sin sesiones'}</div>
           ${(d.redLines || []).length ? `<div style="color:var(--red);font-weight:800">⛔ ${d.redLines.length} línea${d.redLines.length > 1 ? 's' : ''} roja${d.redLines.length > 1 ? 's' : ''}</div>` : ''}
         </div>
       </a>`).join('')}
     <a class="btn" href="#/perro/nuevo/editar">＋ Nuevo perro</a>
   `;
+  const st = $('#starter');
+  if (st) st.onclick = async () => {
+    const now = new Date().toISOString();
+    for (const d of STARTER_DOGS) await DB.put('dogs', { id: uid(), redLines: [], createdAt: now, updatedAt: now, ...d });
+    toast('Fichas creadas. Complétalas cuando puedas.');
+    viewHome();
+  };
 }
+
+// Perros de Javier, para no tener que crearlos uno a uno.
+const RING = ['Obediencia', 'Junto', 'Posiciones', 'Rechazo de comida', 'Envío', 'Salto de valla', 'Palizada', 'Salto de longitud',
+  'Ataque frontal', 'Ataque con huida', 'Ataque detenido', 'Defensa del guía', 'Guarda de objeto', 'Búsqueda y ladrido', 'Conducción'];
+const SECURITY = ['Marcaje', 'Ataque frontal', 'Ataque lanzado', 'Ataque con huida', 'Defensa del guía', 'Guarda', 'Búsqueda y ladrido',
+  'Escolta', 'Conducción', 'Cacheo', 'Obediencia', 'Detección'];
+const BASE = ['Foco activo', 'Frustración controlada', 'Autocontrol', 'Calentamiento', 'Carrera / resistencia', 'Fuerza', 'Propiocepción', 'Estiramientos'];
+const STARTER_DOGS = [
+  { name: 'Aston', type: 'Mascota', exercises: ['Obediencia', 'Posiciones', 'Junto', 'Juegos de olfato', 'Búsqueda de objetos', 'Discos', ...BASE] },
+  { name: 'Ares', type: 'Ring francés', exercises: [...RING, ...BASE] },
+  { name: 'Batman', type: 'Seguridad y combate', exercises: [...SECURITY, ...BASE] },
+  { name: 'Dardo', type: 'Seguridad y combate', exercises: [...SECURITY, ...BASE] },
+];
 
 function backupBanner(sessions) {
   if (!sessions.length) return '';
@@ -131,7 +176,7 @@ async function viewDog(id) {
       ${photoHtml(dog, true)}
       <div>
         <div style="font-size:1.6rem;font-weight:900">${esc(dog.name)}</div>
-        <div>${esc([dog.breed, age(dog.birth)].filter(Boolean).join(' · '))}</div>
+        <div>${esc([dog.type, dog.breed, age(dog.birth)].filter(Boolean).join(' · '))}</div>
         ${dog.level ? `<div><span class="tag">${esc(dog.level)}</span></div>` : ''}
       </div>
     </div>
@@ -172,9 +217,9 @@ function exerciseSummary(e) {
     .map((t) => `<span class="tag${BAD.has(t.replace('Corte: ', '')) ? ' bad' : ''}">${esc(t)}</span>`)
     .join('');
   return `<div class="ex-line">
-    <div><b>${esc(e.exercise)}</b> <span class="muted">${esc([e.tool, e.reps ? e.reps + ' rep.' : ''].filter(Boolean).join(' · '))}</span></div>
+    <div><b>${esc(e.exercise)}</b> <span class="muted">${esc([e.tool, e.reps ? e.reps + ' rep.' : '', e.minutes ? e.minutes + ' min' : '', e.intensity && 'Intensidad ' + e.intensity.toLowerCase()].filter(Boolean).join(' · '))}</span></div>
     ${e.phaseName ? `<div class="muted" style="font-size:.85rem">${esc(e.phaseName)}</div>` : ''}
-    <div class="pillars">${PILLARS.map(([k, l]) => `<div class="pill">${l}<b>${e[k] || '–'}</b></div>`).join('')}</div>
+    ${exType(e.exercise) === 'fisico' && !e.intention ? '' : `<div class="pillars">${PILLARS.map(([k, l]) => `<div class="pill">${l}<b>${e[k] || '–'}</b></div>`).join('')}</div>`}
     ${tags ? `<div style="margin-top:6px">${tags}</div>` : ''}
     ${e.note ? `<div class="muted" style="margin-top:4px;white-space:pre-wrap">📝 ${esc(e.note)}</div>` : ''}
     ${e.audio ? `<div class="muted">🎙 Nota de voz</div>` : ''}
@@ -200,11 +245,16 @@ async function viewDogEdit(id) {
       <label class="field">Raza<input name="breed" value="${esc(dog.breed)}" autocomplete="off"></label>
       <label class="field">Fecha de nacimiento<span class="hint">La edad se calcula sola. Si no la sabes exacta, pon una aproximada.</span>
         <input name="birth" type="date" value="${esc(dog.birth)}"></label>
+      <div class="group"><div class="glabel">Tipo de perro</div>${chips('dogType', settings.dogTypes, dog.type)}</div>
       <label class="field">Nivel actual
         <select name="level"><option value="">—</option>${levels.map((l) => `<option ${l === dog.level ? 'selected' : ''}>${esc(l)}</option>`).join('')}</select>
       </label>
       <label class="field" style="color:var(--red)">⛔ Líneas rojas<span class="hint">Una por línea. Se verán siempre en grande.</span>
         <textarea name="redLines" placeholder="Ej.: No trabajar con más de 25 °C">${esc((dog.redLines || []).join('\n'))}</textarea></label>
+      <div class="group"><div class="glabel">Ejercicios que hace</div>
+        <p class="muted" style="font-size:.85rem;margin-top:0">Al registrar solo saldrán estos. Si no marcas ninguno, salen todos.</p>
+        ${exerciseChips('dogEx', allExercises().concat((dog.exercises || []).filter((x) => !allExercises().includes(x))), dog.exercises || [], true)}
+      </div>
       <label class="field">Físico<textarea name="physical" placeholder="Peso, constitución, estado…">${esc(dog.physical)}</textarea></label>
       <label class="field">Puntos débiles<textarea name="weak" placeholder="Lesiones, zonas a cuidar…">${esc(dog.weak)}</textarea></label>
       <label class="field">Carácter<textarea name="character">${esc(dog.character)}</textarea></label>
@@ -214,6 +264,23 @@ async function viewDogEdit(id) {
     </form>`;
 
   let photo = dog.photo;
+  let dogType = dog.type || '';
+  const dogEx = new Set(dog.exercises || []);
+  $('[data-group="dogType"]').onclick = (ev) => {
+    const b = ev.target.closest('.chip');
+    if (!b) return;
+    const on = b.getAttribute('aria-pressed') !== 'true';
+    $$('[data-group="dogType"] .chip').forEach((c) => c.setAttribute('aria-pressed', 'false'));
+    b.setAttribute('aria-pressed', String(on));
+    dogType = on ? b.dataset.value : '';
+  };
+  $('[data-group="dogEx"]').onclick = (ev) => {
+    const b = ev.target.closest('.chip');
+    if (!b) return;
+    const v = b.dataset.value;
+    if (dogEx.has(v)) dogEx.delete(v); else dogEx.add(v);
+    b.setAttribute('aria-pressed', String(dogEx.has(v)));
+  };
   $('#photoIn').onchange = async (e) => {
     const f = e.target.files[0];
     if (!f) return;
@@ -231,6 +298,8 @@ async function viewDogEdit(id) {
       breed: fd.get('breed').trim(),
       birth: fd.get('birth'),
       level: fd.get('level'),
+      type: dogType,
+      exercises: allExercises().concat(dog.exercises || []).filter((x, i, a) => dogEx.has(x) && a.indexOf(x) === i),
       redLines: lines(fd.get('redLines')),
       physical: fd.get('physical').trim(),
       weak: fd.get('weak').trim(),
@@ -329,11 +398,11 @@ async function viewSession({ dogId, sessionId }) {
       ${settings.team.length ? '' : '<p class="muted" style="font-size:.85rem">Puedes añadir a tu equipo en Ajustes para elegirlos aquí.</p>'}
 
       ${session.exercises.length ? `<h2>Ejercicios (${session.exercises.length})</h2>` : ''}
-      ${session.exercises.map((e, i) => i === editing ? exerciseForm(e) : `
+      ${session.exercises.map((e, i) => i === editing ? exerciseForm(pending || e) : `
         <div class="card">${exerciseSummary(e)}
           <div class="row"><button class="btn small" data-edit="${i}">✏️ Cambiar</button><button class="btn small danger" data-del="${i}">Quitar</button></div>
         </div>`).join('')}
-      ${editing === -1 ? exerciseForm({}) : ''}
+      ${editing === -1 ? exerciseForm(pending || {}) : ''}
       ${editing === null ? `
         <button class="btn primary" id="addEx">＋ ${session.exercises.length ? 'Otro ejercicio' : 'Añadir ejercicio'}</button>
         ${session.exercises.length ? `<a class="btn" href="#/perro/${dog.id}" id="finish">✔ Terminar sesión</a>` : ''}
@@ -350,18 +419,29 @@ async function viewSession({ dogId, sessionId }) {
 
   const phaseInfo = (e) => (e.phaseName ? `<div class="phase-info">▶ ${esc(e.phaseName)}</div>` : '');
 
+  let showAll = false;
+  let pending = null; // ejercicio a medio rellenar
   function exerciseForm(e) {
-    const exs = e.exercise && !settings.exercises.includes(e.exercise) ? [...settings.exercises, e.exercise] : settings.exercises;
-    return `<div class="card" id="exForm">
-      <div class="group"><div class="glabel">Ejercicio</div>${chips('exercise', exs, e.exercise)}<div id="phaseInfo">${phaseInfo(e)}</div></div>
-      <div class="group"><div class="glabel">Herramienta</div>${chips('tool', settings.tools, e.tool)}</div>
-      <div class="group"><div class="glabel">Repeticiones</div>
-        <div class="stepper"><button type="button" data-step="-1">−</button><output id="reps">${e.reps ?? 1}</output><button type="button" data-step="1">＋</button></div>
+    const own = dog.exercises && dog.exercises.length && !showAll ? dog.exercises : allExercises();
+    const exs = e.exercise && !own.includes(e.exercise) ? [...own, e.exercise] : own;
+    const type = e.exercise ? exType(e.exercise) : '';
+    return `<div class="card" id="exForm" data-type="${type}">
+      <div class="group"><div class="glabel">Ejercicio</div>${exerciseChips('exercise', exs, e.exercise)}
+        ${own !== allExercises() ? '<button type="button" class="btn small" id="showAll">Ver todos los ejercicios</button>' : ''}
+        <div id="phaseInfo">${phaseInfo(e)}</div></div>
+      <p class="muted only-none">Elige el ejercicio para ver el resto.</p>
+      <div class="group only-mordida"><div class="glabel">Herramienta</div>${chips('tool', settings.tools, e.tool)}</div>
+      <div class="group only-mordida only-tecnico"><div class="glabel">Repeticiones</div>
+        <div class="stepper"><button type="button" data-step="-1" data-for="reps">−</button><output id="reps">${e.reps ?? 1}</output><button type="button" data-step="1" data-for="reps">＋</button></div>
       </div>
-      ${PILLARS.map(([k, l]) => `<div class="group"><div class="glabel">${l}</div>${chips(k, ['1', '2', '3', '4', '5'], e[k] ? String(e[k]) : '', 'scores')}</div>`).join('')}
-      <div class="group"><div class="glabel">Entrada</div>${chips('entry', settings.entries, e.entry)}</div>
-      <div class="group"><div class="glabel">Mordida</div>${chips('bite', settings.bites, e.bite)}</div>
-      <div class="group"><div class="glabel">Reacción al corte</div>${chips('cut', settings.cuts, e.cut)}</div>
+      <div class="group only-fisico"><div class="glabel">Minutos</div>
+        <div class="stepper"><button type="button" data-step="-5" data-for="minutes">−</button><output id="minutes">${e.minutes ?? 10}</output><button type="button" data-step="5" data-for="minutes">＋</button></div>
+      </div>
+      <div class="group only-fisico"><div class="glabel">Intensidad</div>${chips('intensity', settings.intensities, e.intensity)}</div>
+      ${PILLARS.map(([k, l]) => `<div class="group only-mordida only-tecnico"><div class="glabel">${l}</div>${chips(k, ['1', '2', '3', '4', '5'], e[k] ? String(e[k]) : '', 'scores')}</div>`).join('')}
+      <div class="group only-mordida"><div class="glabel">Entrada</div>${chips('entry', settings.entries, e.entry)}</div>
+      <div class="group only-mordida"><div class="glabel">Mordida</div>${chips('bite', settings.bites, e.bite)}</div>
+      <div class="group only-mordida"><div class="glabel">Reacción al corte</div>${chips('cut', settings.cuts, e.cut)}</div>
       <div class="group"><div class="glabel">Nota</div>
         <textarea id="exNote" placeholder="Escribe o usa los botones de voz">${esc(e.note)}</textarea>
         <div class="row">
@@ -405,7 +485,8 @@ async function viewSession({ dogId, sessionId }) {
     const form = $('#exForm');
     if (!form) return;
     const base = editing >= 0 ? session.exercises[editing] : {};
-    const draft = { ...base };
+    const draft = pending || { ...base };
+    pending = draft;
 
     $$('.chips', form).forEach((group) => {
       group.onclick = (ev) => {
@@ -422,28 +503,47 @@ async function viewSession({ dogId, sessionId }) {
           draft.phaseId = ph?.id || '';
           draft.phaseName = ph ? `Fase ${getPlan(dog, draft.exercise).current + 1}${ph.name ? ': ' + ph.name : ''}` : '';
           $('#phaseInfo').innerHTML = phaseInfo(draft);
+          form.dataset.type = on ? exType(draft.exercise) : '';
         }
       };
     });
     $$('[data-step]', form).forEach((b) => (b.onclick = () => {
-      const out = $('#reps');
+      const out = $('#' + b.dataset.for);
       out.textContent = Math.max(0, +out.textContent + +b.dataset.step);
     }));
+    const sa = $('#showAll', form);
+    if (sa) sa.onclick = () => {
+      showAll = true;
+      draft.note = $('#exNote').value;
+      for (const k of ['reps', 'minutes']) draft[k] = +$('#' + k).textContent;
+      render(); // se redibuja con lo ya marcado (pending)
+    };
 
     setupVoice(form, draft);
 
     $('#saveEx').onclick = async () => {
       if (!draft.exercise) { toast('Elige el ejercicio'); form.scrollIntoView({ behavior: 'smooth' }); return; }
-      draft.reps = +$('#reps').textContent;
       draft.note = $('#exNote').value.trim();
+      // Solo se guarda lo que corresponde a este tipo de ejercicio.
+      const type = exType(draft.exercise);
+      if (type === 'fisico') {
+        draft.minutes = +$('#minutes').textContent;
+        for (const k of ['tool', 'reps', 'entry', 'bite', 'cut', 'intention', 'precision', 'control']) delete draft[k];
+      } else {
+        draft.reps = +$('#reps').textContent;
+        delete draft.minutes; delete draft.intensity;
+        if (type === 'tecnico') for (const k of ['tool', 'entry', 'bite', 'cut']) delete draft[k];
+      }
       if (editing === -1) session.exercises.push(draft); else session.exercises[editing] = draft;
       await persist();
       editing = null;
+      pending = null;
+      showAll = false;
       toast('Ejercicio guardado');
       render();
       window.scrollTo({ top: document.body.scrollHeight, behavior: 'smooth' });
     };
-    $('#cancelEx').onclick = () => { stopRecording(); editing = null; render(); };
+    $('#cancelEx').onclick = () => { stopRecording(); editing = null; pending = null; showAll = false; render(); };
   }
 
   // Al elegir ejercicio, propone la herramienta que usaste la última vez con este perro.
@@ -572,10 +672,11 @@ async function viewSettings() {
 
     <h2>Listas</h2>
     <p class="muted" style="font-size:.85rem">Una opción por línea. Se guardan al salir del cuadro.</p>
-    ${listEditor('exercises', 'Ejercicios')}
+    ${settings.exGroups.map((g, i) => `<label class="field">${esc(g.name)}<textarea data-exgroup="${i}" rows="5">${esc(g.items.join('\n'))}</textarea></label>`).join('')}
+    ${listEditor('dogTypes', 'Tipos de perro')}
     ${listEditor('bites', 'Opciones de mordida')}
     ${listEditor('levels', 'Niveles del perro')}
-    <p class="muted" style="font-size:.8rem;margin-top:30px">Impacto K9 · Pista — versión 2 (etapas 1 y 2)</p>
+    <p class="muted" style="font-size:.8rem;margin-top:30px">Impacto K9 · Pista — versión 3</p>
   `;
 
   $('#doBackup').onclick = doBackup;
@@ -606,6 +707,11 @@ async function viewSettings() {
     $$('#team input').at(-1).focus();
   };
 
+  $$('[data-exgroup]').forEach((ta) => (ta.onchange = async () => {
+    settings.exGroups[+ta.dataset.exgroup].items = lines(ta.value);
+    await saveSettings();
+    toast('Lista guardada');
+  }));
   $$('[data-list]').forEach((ta) => (ta.onchange = async () => {
     const vals = lines(ta.value);
     settings[ta.dataset.list] = vals.length ? vals : [...DEFAULTS[ta.dataset.list]];
@@ -692,6 +798,8 @@ async function loadSettings() {
   const saved = await DB.get('settings', 'main');
   settings = { ...DEFAULTS, ...(saved || {}) };
   delete settings.key;
+  delete settings.exercises; // lista antigua sin grupos
+  settings.exGroups = JSON.parse(JSON.stringify(settings.exGroups));
 }
 
 async function route() {
