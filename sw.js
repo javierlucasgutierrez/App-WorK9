@@ -1,5 +1,5 @@
 // Guarda la app en el móvil para que funcione sin cobertura.
-const CACHE = 'impacto-k9-v3';
+const CACHE = 'impacto-k9-v4';
 const FILES = [
   './',
   './index.html',

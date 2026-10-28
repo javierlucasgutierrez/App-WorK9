@@ -89,11 +89,11 @@ function plansSection(dog, sessions) {
 
 async function viewPlan(dogId, exParam) {
   const dog = await DB.get('dogs', dogId);
-  if (!dog) return (location.hash = '#/');
+  if (!dog) return go('#/');
   if (exParam === 'nuevo') return viewPlanNew(dog);
   const exercise = decodeURIComponent(exParam);
   const plan = getPlan(dog, exercise);
-  if (!plan) return location.replace('#/perro/' + dog.id);
+  if (!plan) return go('#/perro/' + dog.id);
   setHeader(exercise + ' · ' + dog.name, true);
   const sessions = await DB.byDog(dog.id);
   const sem = semaphore(plan, sessions, exercise);
@@ -129,12 +129,12 @@ async function viewPlan(dogId, exParam) {
     viewPlan(dog.id, exParam);
   };
   const adv = $('#advance');
-  if (adv) adv.onclick = () => {
+  if (adv) adv.onclick = async () => {
     const warn = sem.color === 'green' ? '' : `El semáforo NO está en verde (${sem.title.toLowerCase()}).\n\n`;
-    if (confirm(`${warn}¿Pasar a ${dog.name} a la fase ${plan.current + 2}?`)) move(plan.current + 1);
+    if (await ask(`${warn}¿Pasar a ${dog.name} a la fase ${plan.current + 2}?`)) move(plan.current + 1);
   };
   const reg = $('#regress');
-  if (reg) reg.onclick = () => confirm(`¿Volver a la fase ${plan.current}?`) && move(plan.current - 1);
+  if (reg) reg.onclick = async () => (await ask(`¿Volver a la fase ${plan.current}?`)) && move(plan.current - 1);
   $('#editPlan').onclick = () => editPlan(dog, exercise);
 }
 
@@ -208,9 +208,9 @@ function editPlan(dog, exercise, template) {
       [plan.phases[i - 1], plan.phases[i]] = [plan.phases[i], plan.phases[i - 1]];
       render();
     }));
-    $$('[data-rm]').forEach((b) => (b.onclick = () => {
+    $$('[data-rm]').forEach((b) => (b.onclick = async () => {
       const i = +b.dataset.rm;
-      if (!confirm(`¿Quitar la fase ${i + 1}?`)) return;
+      if (!await ask(`¿Quitar la fase ${i + 1}?`)) return;
       plan.phases.splice(i, 1);
       if (plan.current >= plan.phases.length) plan.current = plan.phases.length - 1;
       else if (i < plan.current) plan.current--;
@@ -231,16 +231,15 @@ function editPlan(dog, exercise, template) {
       dog.updatedAt = new Date().toISOString();
       await DB.put('dogs', dog);
       toast('Fases guardadas');
-      location.replace(`#/perro/${dog.id}/fases/${encodeURIComponent(exercise)}`);
-      if (existing) route();
+      go(`#/perro/${dog.id}/fases/${encodeURIComponent(exercise)}`);
     };
     const del = $('#delPlan');
     if (del) del.onclick = async () => {
-      if (!confirm(`¿Borrar todas las fases de ${exercise}? Las sesiones no se borran.`)) return;
+      if (!await ask(`¿Borrar todas las fases de ${exercise}? Las sesiones no se borran.`)) return;
       delete dog.plans[exercise];
       await DB.put('dogs', dog);
       toast('Fases borradas');
-      location.replace('#/perro/' + dog.id);
+      go('#/perro/' + dog.id);
     };
   };
   render();

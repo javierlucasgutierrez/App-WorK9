@@ -66,6 +66,59 @@ function age(birth) {
   return `${y} años`;
 }
 
+// ---------- navegación ----------
+// En el móvil se usa la dirección (#/...) para que funcione el botón atrás del teléfono.
+// Dentro del chat de Claude eso no se puede, así que se lleva la cuenta aquí.
+const IN_CHAT = !!window.IMPACTO_ARTIFACT;
+let stack = ['#/'];
+const currentPath = () => (IN_CHAT ? stack[stack.length - 1] : location.hash || '#/');
+
+// Ir a otra pantalla sustituyendo la actual (tras guardar o borrar).
+function go(path) {
+  if (IN_CHAT) { stack[stack.length - 1] = path; route(); }
+  else if (location.hash === path) route();
+  else location.replace(path);
+}
+function goBack() {
+  if (IN_CHAT) {
+    if (stack.length > 1) { stack.pop(); route(); } else go('#/');
+  } else if (history.length > 1) history.back();
+  else go('#/');
+}
+if (IN_CHAT) {
+  document.addEventListener('click', (ev) => {
+    const a = ev.target.closest('a[href^="#/"]');
+    if (!a) return;
+    ev.preventDefault();
+    const href = a.getAttribute('href');
+    if (a.dataset.tab) stack = [href]; else stack.push(href);
+    route();
+  });
+}
+
+// ---------- avisos propios (sustituyen a las ventanas del navegador) ----------
+function dialog(message, buttons) {
+  return new Promise((resolve) => {
+    const wrap = document.createElement('div');
+    wrap.className = 'modal';
+    wrap.innerHTML = `<div class="modal-box" role="dialog" aria-modal="true">
+      <p class="modal-msg"></p>
+      <div class="row">${buttons.map((b, i) => `<button type="button" class="btn ${b.cls || ''}" data-i="${i}">${esc(b.label)}</button>`).join('')}</div>
+    </div>`;
+    $('.modal-msg', wrap).textContent = message;
+    wrap.onclick = (ev) => {
+      const b = ev.target.closest('[data-i]');
+      if (!b) return;
+      wrap.remove();
+      resolve(buttons[+b.dataset.i].value);
+    };
+    document.body.appendChild(wrap);
+    $$('button', wrap).at(-1).focus();
+  });
+}
+const ask = (message, ok = 'Sí') => dialog(message, [{ label: 'Cancelar', value: false }, { label: ok, value: true, cls: 'primary' }]);
+const notify = (message) => dialog(message, [{ label: 'Vale', value: true, cls: 'primary' }]);
+
 function toast(msg) {
   const t = $('#toast');
   t.textContent = msg;
@@ -168,7 +221,7 @@ function backupBanner(sessions) {
 
 async function viewDog(id) {
   const dog = await DB.get('dogs', id);
-  if (!dog) return (location.hash = '#/');
+  if (!dog) return go('#/');
   setHeader(dog.name, true);
   const sessions = sortSessions(await DB.byDog(id));
   app.innerHTML = `
@@ -229,7 +282,7 @@ function exerciseSummary(e) {
 async function viewDogEdit(id) {
   const isNew = id === 'nuevo';
   const dog = isNew ? { id: uid(), redLines: [] } : await DB.get('dogs', id);
-  if (!dog) return (location.hash = '#/');
+  if (!dog) return go('#/');
   setHeader(isNew ? 'Nuevo perro' : 'Editar ficha', true);
   const levels = settings.levels.includes(dog.level) || !dog.level ? settings.levels : [...settings.levels, dog.level];
 
@@ -311,17 +364,17 @@ async function viewDogEdit(id) {
     };
     await DB.put('dogs', saved);
     toast('Ficha guardada');
-    location.replace('#/perro/' + saved.id);
+    go('#/perro/' + saved.id);
   };
 
   const del = $('#delDog');
   if (del) del.onclick = async () => {
     const sessions = await DB.byDog(dog.id);
-    if (!confirm(`¿Borrar a ${dog.name} y sus ${sessions.length} sesiones? No se puede deshacer.`)) return;
+    if (!await ask(`¿Borrar a ${dog.name} y sus ${sessions.length} sesiones? No se puede deshacer.`)) return;
     for (const s of sessions) await DB.del('sessions', s.id);
     await DB.del('dogs', dog.id);
     toast('Perro borrado');
-    location.replace('#/');
+    go('#/');
   };
 }
 
@@ -345,7 +398,7 @@ function resizeImage(file, max) {
 async function viewPickDog() {
   setHeader('¿Qué perro?', false);
   const dogs = sortDogs(await DB.all('dogs'));
-  if (dogs.length === 1) return location.replace('#/registrar/' + dogs[0].id);
+  if (dogs.length === 1) return go('#/registrar/' + dogs[0].id);
   app.innerHTML = dogs.length
     ? dogs.map((d) => `<a class="card dog-card" href="#/registrar/${d.id}">${photoHtml(d)}<div class="name">${esc(d.name)}</div></a>`).join('')
     : `<p>Primero crea la ficha de un perro.</p><a class="btn primary" href="#/perro/nuevo/editar">＋ Nuevo perro</a>`;
@@ -356,11 +409,11 @@ async function viewSession({ dogId, sessionId }) {
   let session;
   if (sessionId) {
     session = await DB.get('sessions', sessionId);
-    if (!session) return (location.hash = '#/');
+    if (!session) return go('#/');
     dogId = session.dogId;
   }
   const dog = await DB.get('dogs', dogId);
-  if (!dog) return (location.hash = '#/');
+  if (!dog) return go('#/');
   const isNew = !session;
   if (isNew) {
     // Guía y figurante de la última sesión de este perro, para no tener que elegirlos otra vez.
@@ -465,7 +518,7 @@ async function viewSession({ dogId, sessionId }) {
     }
     $$('[data-edit]').forEach((b) => (b.onclick = () => { editing = +b.dataset.edit; render(); scrollToForm(); }));
     $$('[data-del]').forEach((b) => (b.onclick = async () => {
-      if (!confirm('¿Quitar este ejercicio?')) return;
+      if (!await ask('¿Quitar este ejercicio?')) return;
       session.exercises.splice(+b.dataset.del, 1);
       if (session.exercises.length) await persist(); else await DB.del('sessions', session.id);
       render();
@@ -474,10 +527,10 @@ async function viewSession({ dogId, sessionId }) {
     if (add) add.onclick = () => { editing = -1; render(); scrollToForm(); };
     const delS = $('#delSession');
     if (delS) delS.onclick = async () => {
-      if (!confirm('¿Borrar la sesión entera?')) return;
+      if (!await ask('¿Borrar la sesión entera?')) return;
       await DB.del('sessions', session.id);
       toast('Sesión borrada');
-      location.replace('#/perro/' + dog.id);
+      go('#/perro/' + dog.id);
     };
     const finish = $('#finish');
     if (finish) finish.onclick = () => toast('Sesión guardada');
@@ -586,7 +639,7 @@ function setupVoice(form, draft) {
   // Dictado: convierte voz en texto (normalmente necesita cobertura).
   const dictateBtn = $('#dictate', form);
   const SR = window.SpeechRecognition || window.webkitSpeechRecognition;
-  if (!SR) dictateBtn.hidden = true;
+  if (!SR || IN_CHAT) dictateBtn.hidden = true;
   let rec = null;
   dictateBtn.onclick = () => {
     if (rec) { rec.stop(); return; }
@@ -614,7 +667,7 @@ function setupVoice(form, draft) {
 
   // Grabación de audio: funciona siempre, también sin cobertura.
   const recordBtn = $('#record', form);
-  if (!window.MediaRecorder || !navigator.mediaDevices) recordBtn.hidden = true;
+  if (!window.MediaRecorder || !navigator.mediaDevices || IN_CHAT) recordBtn.hidden = true;
   recordBtn.onclick = async () => {
     if (recorder && recorder.state === 'recording') { recorder.stop(); return; }
     let stream;
@@ -660,7 +713,8 @@ async function viewSettings() {
     <p class="muted" style="font-size:.85rem">Crea un archivo con todos tus datos. Mándatelo por WhatsApp o correo, o guárdalo en Drive.</p>
     <label class="btn">Recuperar copia<input type="file" id="restore" accept=".json,application/json" hidden></label>
     <p class="muted" style="font-size:.85rem">Sustituye lo que hay en el móvil por lo que haya en el archivo.</p>
-    ${persisted === false ? '<p class="muted" style="font-size:.85rem">Consejo: instala la app en la pantalla de inicio para que el móvil no borre los datos.</p>' : ''}
+    <p class="muted" style="font-size:.85rem">${DB.kind === 'claude' ? 'Los datos se guardan en tu cuenta de Claude: los verás igual desde el móvil o el ordenador.' : IN_CHAT ? 'Los datos se guardan solo en este navegador.' : ''}</p>
+    ${persisted === false && !IN_CHAT ? '<p class="muted" style="font-size:.85rem">Consejo: instala la app en la pantalla de inicio para que el móvil no borre los datos.</p>' : ''}
 
     <h2>Aspecto</h2>
     ${chips('theme', ['Automático', 'Claro (sol)', 'Oscuro'], themeLabel())}
@@ -736,7 +790,20 @@ async function doBackup() {
   const blob = new Blob([JSON.stringify(data)], { type: 'application/json' });
   const file = new File([blob], name, { type: 'application/json' });
   let done = false;
-  if (navigator.canShare && navigator.canShare({ files: [file] })) {
+  if (IN_CHAT) {
+    const downloads = window.claude ? await window.claude.use('downloads') : null;
+    try {
+      if (!downloads) throw { code: 'unavailable' };
+      await downloads.save({ filename: name, data: blob });
+    } catch (e) {
+      settings.lastBackup = previous;
+      await saveSettings();
+      if (e.code !== 'declined') notify('Aquí no se puede guardar el archivo. Prueba desde claude.ai en el navegador.');
+      return;
+    }
+    done = true;
+  }
+  if (!done && navigator.canShare && navigator.canShare({ files: [file] })) {
     try {
       await navigator.share({ files: [file], title: 'Copia Impacto K9' });
       done = true;
@@ -767,14 +834,14 @@ async function doRestore(ev) {
   try {
     const data = JSON.parse(await f.text());
     if (data.app !== 'impacto-k9') throw new Error('Este archivo no es una copia de Impacto K9.');
-    const msg = `La copia tiene ${(data.dogs || []).length} perros y ${(data.sessions || []).length} sesiones (del ${new Date(data.exportedAt).toLocaleDateString('es-ES')}).\n\nSe sustituirá todo lo que hay ahora en el móvil. ¿Seguir?`;
-    if (!confirm(msg)) return;
+    const msg = `La copia tiene ${(data.dogs || []).length} perros y ${(data.sessions || []).length} sesiones (del ${new Date(data.exportedAt).toLocaleDateString('es-ES')}).\n\nSe sustituirá todo lo que hay ahora en la app. ¿Seguir?`;
+    if (!await ask(msg)) return;
     await DB.importAll(data);
     await loadSettings();
     toast('Copia recuperada');
-    location.hash = '#/';
+    go('#/');
   } catch (e) {
-    alert(e.message.includes('Impacto') ? e.message : 'No se ha podido leer el archivo.');
+    notify(e.message.includes('Impacto') ? e.message : 'No se ha podido leer el archivo.');
   }
 }
 
@@ -804,7 +871,7 @@ async function loadSettings() {
 
 async function route() {
   stopRecording();
-  const parts = location.hash.replace(/^#\/?/, '').split('/').filter(Boolean);
+  const parts = currentPath().replace(/^#\/?/, '').split('/').filter(Boolean);
   const tab = parts[0] === 'registrar' || parts[0] === 'sesion' ? 'log' : parts[0] === 'ajustes' ? 'settings' : 'home';
   $$('#tabs a').forEach((a) => a.classList.toggle('active', a.dataset.tab === tab));
   window.scrollTo(0, 0);
@@ -817,7 +884,7 @@ async function route() {
     else if (parts[0] === 'registrar') await viewPickDog();
     else if (parts[0] === 'sesion') await viewSession({ sessionId: parts[1] });
     else if (parts[0] === 'ajustes') await viewSettings();
-    else location.hash = '#/';
+    else go('#/');
   } catch (e) {
     console.error(e);
     app.innerHTML = `<p>Ha habido un problema: ${esc(e.message)}</p><a class="btn" href="#/">Volver al inicio</a>`;
@@ -827,10 +894,11 @@ async function route() {
 (async function start() {
   try { const t = localStorage.getItem('theme'); if (t && t !== 'auto') setTheme(t); } catch {}
   $('#theme').onclick = () => setTheme(currentDark() ? 'light' : 'dark');
-  $('#back').onclick = () => (history.length > 1 ? history.back() : (location.hash = '#/'));
-  if ('serviceWorker' in navigator) navigator.serviceWorker.register('sw.js').catch(() => {});
+  $('#back').onclick = goBack;
+  if (!IN_CHAT && 'serviceWorker' in navigator) navigator.serviceWorker.register('sw.js').catch(() => {});
+  await DB.ready();
   if (navigator.storage?.persist) navigator.storage.persist().catch(() => {});
   await loadSettings();
-  window.addEventListener('hashchange', route);
+  if (!IN_CHAT) window.addEventListener('hashchange', route);
   route();
 })();
