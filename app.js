@@ -29,6 +29,10 @@ const DEFAULTS = {
 };
 // Respuestas que se marcan en rojo en el historial.
 const BAD = new Set(['Con choque', 'Se queda con la presa', 'Inestable', 'Marcaje activo (rasca o muerde)', 'Sin marcaje']);
+const ALL_FIELDS = ['tool', 'reps', 'minutes', 'intensity', 'pmode', 'speed', 'series', 'seriesTime', 'rest', 'hrAvg', 'hrMax', 'link',
+  'hides', 'found', 'falses', 'mark', 'intention', 'precision', 'control', 'entry', 'bite', 'cut'];
+const numInput = (id, value, placeholder, decimal) =>
+  `<input id="${id}" type="text" inputmode="${decimal ? 'decimal' : 'numeric'}" value="${value != null && value !== '' ? esc(num(value)) : ''}" placeholder="${placeholder}" autocomplete="off">`;
 const PILLARS = [['intention', 'Intención'], ['precision', 'Precisión'], ['control', 'Control']];
 
 let settings = { ...DEFAULTS };
@@ -269,7 +273,18 @@ function sessionCard(s) {
   </a>`;
 }
 
-function exerciseSummary(e) {
+const num = (v) => String(v).replace('.', ',');
+
+function physicalLine(e) {
+  return [e.pmode,
+    e.pmode === 'Series' && e.series ? `${e.series} × ${e.seriesTime ? e.seriesTime + ' s' : 'series'}${e.rest ? ', descanso ' + e.rest + ' s' : ''}` : '',
+    e.speed ? num(e.speed) + ' km/h' : '',
+    e.hrAvg ? 'FC media ' + e.hrAvg : '', e.hrMax ? 'FC máx. ' + e.hrMax : ''].filter(Boolean).join(' · ');
+}
+
+// linkable: false cuando el resumen va dentro de otro enlace (no se pueden anidar).
+function exerciseSummary(e, linkable) {
+  const phys = physicalLine(e);
   const tags = [e.mark, e.falses ? `${e.falses} falso${e.falses > 1 ? 's' : ''} marcaje${e.falses > 1 ? 's' : ''}` : '', e.entry, e.bite && e.bite !== 'No aplica' ? e.bite : '', e.cut && 'Corte: ' + e.cut]
     .filter(Boolean)
     .map((t) => `<span class="tag${BAD.has(t.replace('Corte: ', '')) || /falsos? marcaje/.test(t) ? ' bad' : ''}">${esc(t)}</span>`)
@@ -278,6 +293,8 @@ function exerciseSummary(e) {
     <div><b>${esc(e.exercise)}</b> <span class="muted">${esc([e.tool, e.reps ? e.reps + ' rep.' : '',
       e.hides != null ? `${e.found ?? 0} de ${e.hides} encontrados` : '', e.minutes ? e.minutes + ' min' : '', e.intensity && 'Intensidad ' + e.intensity.toLowerCase()].filter(Boolean).join(' · '))}</span></div>
     ${e.phaseName ? `<div class="muted" style="font-size:.85rem">${esc(e.phaseName)}</div>` : ''}
+    ${phys ? `<div class="muted">${esc(phys)}</div>` : ''}
+    ${/^https?:\/\//i.test(e.link || '') ? (linkable ? `<div><a href="${esc(e.link)}" target="_blank" rel="noopener" class="ext-link">⌚ Ver actividad del reloj ↗</a></div>` : '<div class="muted">⌚ Actividad del reloj vinculada</div>') : ''}
     ${exType(e.exercise) === 'fisico' && !e.intention ? '' : `<div class="pillars">${PILLARS.map(([k, l]) => `<div class="pill">${l}<b>${e[k] || '–'}</b></div>`).join('')}</div>`}
     ${tags ? `<div style="margin-top:6px">${tags}</div>` : ''}
     ${e.note ? `<div class="muted" style="margin-top:4px;white-space:pre-wrap">📝 ${esc(e.note)}</div>` : ''}
@@ -458,7 +475,7 @@ async function viewSession({ dogId, sessionId }) {
 
       ${session.exercises.length ? `<h2>Ejercicios (${session.exercises.length})</h2>` : ''}
       ${session.exercises.map((e, i) => i === editing ? exerciseForm(pending || e) : `
-        <div class="card">${exerciseSummary(e)}
+        <div class="card">${exerciseSummary(e, true)}
           <div class="row"><button class="btn small" data-edit="${i}">✏️ Cambiar</button><button class="btn small danger" data-del="${i}">Quitar</button></div>
         </div>`).join('')}
       ${editing === -1 ? exerciseForm(pending || {}) : ''}
@@ -478,13 +495,23 @@ async function viewSession({ dogId, sessionId }) {
 
   const phaseInfo = (e) => (e.phaseName ? `<div class="phase-info">▶ ${esc(e.phaseName)}</div>` : '');
 
+  // Pasa al borrador lo escrito en contadores y casillas.
+  function readFields(draft) {
+    for (const k of ['reps', 'minutes', 'hides', 'found', 'falses', 'series']) draft[k] = +$('#' + k).textContent;
+    for (const k of ['speed', 'seriesTime', 'rest', 'hrAvg', 'hrMax']) {
+      const v = parseFloat($('#' + k).value.replace(',', '.'));
+      draft[k] = Number.isFinite(v) ? v : '';
+    }
+    draft.link = $('#link').value.trim();
+  }
+
   let showAll = false;
   let pending = null; // ejercicio a medio rellenar
   function exerciseForm(e) {
     const own = dog.exercises && dog.exercises.length && !showAll ? dog.exercises : allExercises();
     const exs = e.exercise && !own.includes(e.exercise) ? [...own, e.exercise] : own;
     const type = e.exercise ? exType(e.exercise) : '';
-    return `<div class="card" id="exForm" data-type="${type}">
+    return `<div class="card" id="exForm" data-type="${type}" data-pmode="${esc(e.pmode || '')}">
       <div class="group"><div class="glabel">Ejercicio</div>${exerciseChips('exercise', exs, e.exercise)}
         ${own !== allExercises() ? '<button type="button" class="btn small" id="showAll">Ver todos los ejercicios</button>' : ''}
         <div id="phaseInfo">${phaseInfo(e)}</div></div>
@@ -493,14 +520,29 @@ async function viewSession({ dogId, sessionId }) {
       <div class="group only-mordida only-tecnico"><div class="glabel">Repeticiones</div>
         <div class="stepper"><button type="button" data-step="-1" data-for="reps">−</button><output id="reps">${e.reps ?? 1}</output><button type="button" data-step="1" data-for="reps">＋</button></div>
       </div>
-      <div class="group only-fisico"><div class="glabel">Minutos</div>
+      <div class="group only-fisico"><div class="glabel">Tipo de trabajo</div>${chips('pmode', ['Continuo', 'Series'], e.pmode)}</div>
+      <div class="group only-fisico"><div class="glabel">Minutos en total</div>
         <div class="stepper"><button type="button" data-step="-5" data-for="minutes">−</button><output id="minutes">${e.minutes ?? 10}</output><button type="button" data-step="5" data-for="minutes">＋</button></div>
       </div>
       ${[['hides', 'Escondites puestos', e.hides ?? 3], ['found', 'Encontrados', e.found ?? 0], ['falses', 'Falsos marcajes', e.falses ?? 0]].map(([k, l, v]) =>
         `<div class="group only-deteccion"><div class="glabel">${l}</div>
           <div class="stepper"><button type="button" data-step="-1" data-for="${k}">−</button><output id="${k}">${v}</output><button type="button" data-step="1" data-for="${k}">＋</button></div></div>`).join('')}
       <div class="group only-deteccion"><div class="glabel">Marcaje</div>${chips('mark', settings.marks, e.mark)}</div>
+      <label class="field only-continuo">Velocidad media (km/h)${numInput('speed', e.speed, '12,5', true)}</label>
+      <div class="group only-series"><div class="glabel">Número de series</div>
+        <div class="stepper"><button type="button" data-step="-1" data-for="series">−</button><output id="series">${e.series ?? 4}</output><button type="button" data-step="1" data-for="series">＋</button></div>
+      </div>
+      <div class="row only-series">
+        <label class="field">Cada serie (segundos)${numInput('seriesTime', e.seriesTime, '30')}</label>
+        <label class="field">Descanso (segundos)${numInput('rest', e.rest, '60')}</label>
+      </div>
       <div class="group only-fisico"><div class="glabel">Intensidad</div>${chips('intensity', settings.intensities, e.intensity)}</div>
+      <div class="row only-fisico">
+        <label class="field">FC media (ppm)${numInput('hrAvg', e.hrAvg, '140')}</label>
+        <label class="field">FC máxima (ppm)${numInput('hrMax', e.hrMax, '180')}</label>
+      </div>
+      <label class="field only-fisico">Actividad de Garmin, Strava o Polar<span class="hint">Pega aquí el enlace de la actividad (opcional).</span>
+        <input id="link" type="url" inputmode="url" value="${esc(e.link)}" placeholder="https://…" autocomplete="off"></label>
       ${PILLARS.map(([k, l]) => `<div class="group only-mordida only-tecnico only-deteccion"><div class="glabel">${l}</div>${chips(k, ['1', '2', '3', '4', '5'], e[k] ? String(e[k]) : '', 'scores')}</div>`).join('')}
       <div class="group only-mordida"><div class="glabel">Entrada</div>${chips('entry', settings.entries, e.entry)}</div>
       <div class="group only-mordida"><div class="glabel">Mordida</div>${chips('bite', settings.bites, e.bite)}</div>
@@ -568,6 +610,9 @@ async function viewSession({ dogId, sessionId }) {
           $('#phaseInfo').innerHTML = phaseInfo(draft);
           form.dataset.type = on ? exType(draft.exercise) : '';
         }
+        if (key === 'pmode') {
+          form.dataset.pmode = draft.pmode || '';
+        }
       };
     });
     $$('[data-step]', form).forEach((b) => (b.onclick = () => {
@@ -578,7 +623,7 @@ async function viewSession({ dogId, sessionId }) {
     if (sa) sa.onclick = () => {
       showAll = true;
       draft.note = $('#exNote').value;
-      for (const k of ['reps', 'minutes', 'hides', 'found', 'falses']) draft[k] = +$('#' + k).textContent;
+      readFields(draft);
       render(); // se redibuja con lo ya marcado (pending)
     };
 
@@ -593,11 +638,12 @@ async function viewSession({ dogId, sessionId }) {
         mordida: ['tool', 'reps', 'intention', 'precision', 'control', 'entry', 'bite', 'cut'],
         tecnico: ['reps', 'intention', 'precision', 'control'],
         deteccion: ['hides', 'found', 'falses', 'mark', 'intention', 'precision', 'control'],
-        fisico: ['minutes', 'intensity'],
-      }[type];
-      for (const k of ['reps', 'minutes', 'hides', 'found', 'falses']) if (FIELDS.includes(k)) draft[k] = +$('#' + k).textContent;
-      for (const k of ['tool', 'reps', 'minutes', 'intensity', 'hides', 'found', 'falses', 'mark', 'intention', 'precision', 'control', 'entry', 'bite', 'cut']) {
-        if (!FIELDS.includes(k)) delete draft[k];
+        fisico: ['minutes', 'intensity', 'pmode', 'hrAvg', 'hrMax', 'link'],
+      }[type].slice();
+      readFields(draft);
+      if (type === 'fisico') FIELDS.push(...(draft.pmode === 'Series' ? ['series', 'seriesTime', 'rest'] : draft.pmode === 'Continuo' ? ['speed'] : []));
+      for (const k of Object.keys(draft)) {
+        if (ALL_FIELDS.includes(k) && (!FIELDS.includes(k) || draft[k] === '' || draft[k] == null)) delete draft[k];
       }
       if (editing === -1) session.exercises.push(draft); else session.exercises[editing] = draft;
       await persist();
@@ -742,7 +788,7 @@ async function viewSettings() {
     ${listEditor('dogTypes', 'Tipos de perro')}
     ${listEditor('bites', 'Opciones de mordida')}
     ${listEditor('levels', 'Niveles del perro')}
-    <p class="muted" style="font-size:.8rem;margin-top:30px">Impacto K9 · Pista — versión 4</p>
+    <p class="muted" style="font-size:.8rem;margin-top:30px">Impacto K9 · Pista — versión 5</p>
   `;
 
   $('#doBackup').onclick = doBackup;

@@ -179,11 +179,17 @@ details.card summary { font-weight: 800; cursor: pointer; min-height: 40px; }
 .btn[disabled] { opacity: .35; }
 
 /* Campos según el tipo de ejercicio */
-#exForm .only-mordida, #exForm .only-tecnico, #exForm .only-deteccion, #exForm .only-fisico { display: none; }
+#exForm .only-mordida, #exForm .only-tecnico, #exForm .only-deteccion, #exForm .only-fisico,
+#exForm .only-continuo, #exForm .only-series { display: none; }
 #exForm[data-type="mordida"] .only-mordida,
 #exForm[data-type="tecnico"] .only-tecnico,
 #exForm[data-type="deteccion"] .only-deteccion,
 #exForm[data-type="fisico"] .only-fisico { display: block; }
+#exForm[data-type="fisico"] .row.only-fisico,
+#exForm[data-type="fisico"][data-pmode="Series"] .row.only-series { display: flex; }
+#exForm[data-type="fisico"][data-pmode="Continuo"] .only-continuo,
+#exForm[data-type="fisico"][data-pmode="Series"] .group.only-series { display: block; }
+.ext-link { display: inline-block; padding: 8px 0; font-weight: 800; color: var(--accent); }
 #exForm:not([data-type=""]) .only-none { display: none; }
 .chip-head { flex: 1 1 100%; margin: 8px 0 0; font-size: .85rem; font-weight: 800; color: var(--muted); text-transform: uppercase; letter-spacing: .03em; }
 
