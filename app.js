@@ -231,39 +231,47 @@ function backupBanner(sessions) {
   </a>`;
 }
 
+const dogTab = {}; // pestaña abierta de cada perro, para volver a la misma
+const DOG_TABS = [['resumen', 'Resumen'], ['fases', 'Fases'], ['recursos', 'Recursos'], ['sesiones', 'Sesiones']];
+
 async function viewDog(id) {
   const dog = await DB.get('dogs', id);
   if (!dog) return go('#/');
   setHeader(dog.name, true);
   const sessions = sortSessions(await DB.byDog(id));
-  app.innerHTML = `
-    <div style="display:flex;gap:16px;align-items:center">
-      ${photoHtml(dog, true)}
-      <div>
-        <div style="font-size:1.6rem;font-weight:900">${esc(dog.name)}</div>
-        <div>${esc([dog.type, dog.breed, age(dog.birth)].filter(Boolean).join(' · '))}</div>
-        ${dog.level ? `<div><span class="tag">${esc(dog.level)}</span></div>` : ''}
+  const tab = dogTab[id] || 'resumen';
+  const panes = {
+    resumen: () => `
+      <div class="dog-head">
+        ${photoHtml(dog, true)}
+        <div style="min-width:0">
+          <div class="dog-name">${esc(dog.name)}</div>
+          <div>${esc([dog.type, dog.breed, age(dog.birth)].filter(Boolean).join(' · '))}</div>
+          ${dog.level ? `<span class="tag">${esc(dog.level)}</span>` : ''}
+        </div>
       </div>
-    </div>
-    ${redLinesHtml(dog)}
-    <a class="btn primary" href="#/registrar/${dog.id}">＋ Registrar sesión</a>
-    <div class="card">
-      <dl class="facts">
-        ${fact('Físico', dog.physical)}
-        ${fact('Puntos débiles', dog.weak)}
-        ${fact('Carácter', dog.character)}
-        ${fact('Notas', dog.notes)}
-      </dl>
-      ${!dog.physical && !dog.weak && !dog.character && !dog.notes ? '<p class="muted">Sin datos de físico ni carácter todavía.</p>' : ''}
-    </div>
-    <a class="btn small" href="#/perro/${dog.id}/editar">✏️ Editar ficha</a>
-
-    ${plansSection(dog, sessions)}
-    ${resourcesSection(dog, sessions)}
-
-    <h2>Sesiones (${sessions.length})</h2>
-    ${sessions.length ? sessions.map(sessionCard).join('') : '<p class="muted">Aún no hay sesiones.</p>'}
+      ${redLinesHtml(dog)}
+      <a class="btn primary" href="#/registrar/${dog.id}">＋ Registrar sesión</a>
+      <div class="card">
+        <dl class="facts">
+          ${fact('Físico', dog.physical)}
+          ${fact('Puntos débiles', dog.weak)}
+          ${fact('Carácter', dog.character)}
+          ${fact('Notas', dog.notes)}
+        </dl>
+        ${!dog.physical && !dog.weak && !dog.character && !dog.notes ? '<p class="muted" style="margin:0">Sin datos de físico ni carácter todavía.</p>' : ''}
+      </div>
+      <a class="btn small" href="#/perro/${dog.id}/editar">✏️ Editar ficha</a>`,
+    fases: () => plansSection(dog, sessions),
+    recursos: () => resourcesSection(dog, sessions),
+    sesiones: () => sessions.length ? sessions.map(sessionCard).join('') : '<p class="muted">Aún no hay sesiones.</p>',
+  };
+  app.innerHTML = `
+    <div class="seg" role="tablist">${DOG_TABS.map(([k, l]) =>
+      `<button type="button" role="tab" data-tab-id="${k}" aria-selected="${k === tab}">${l}${k === 'sesiones' && sessions.length ? ` <span class="count">${sessions.length}</span>` : ''}</button>`).join('')}</div>
+    <div class="tabpane">${panes[tab]()}</div>
   `;
+  $$('[data-tab-id]').forEach((b) => (b.onclick = () => { dogTab[id] = b.dataset.tabId; viewDog(id); }));
 }
 
 const fact = (label, value) => (value ? `<dt>${label}</dt><dd>${esc(value)}</dd>` : '');
@@ -470,39 +478,36 @@ async function viewSession({ dogId, sessionId }) {
     await DB.put('sessions', session);
   }
 
+  // Mientras se rellena un ejercicio o un recurso solo se ve ese formulario, paso a paso.
   function render() {
     const guides = people((p) => p.role === 'Guía');
     const figs = people((p) => p.role !== 'Guía');
+    const strip = `${(dog.redLines || []).length ? `<div class="strip-red">⛔ ${dog.redLines.map(esc).join(' · ')}</div>` : ''}`;
+    if (editing !== null || resEditing !== null) {
+      document.body.classList.add('focus');
+      app.innerHTML = strip + (editing !== null ? exerciseForm(pending || (editing >= 0 ? session.exercises[editing] : {})) : resourceForm(resEditing >= 0 ? session.resources[resEditing] : {}));
+      bind();
+      return;
+    }
+    document.body.classList.remove('focus');
     app.innerHTML = `
-      ${redLinesHtml(dog, true)}
-      <div class="row">
-        <label class="field">Fecha<input type="date" id="sDate" value="${esc(session.date)}"></label>
+      ${strip}
+      <div class="meta">
+        <input type="date" id="sDate" value="${esc(session.date)}" aria-label="Fecha">
+        <label>Guía${personSelect('sGuide', guides, session.guide)}</label>
+        <label>Figurante${personSelect('sFig', figs, session.figurant)}</label>
       </div>
+      ${session.exercises.map((e, i) => `<div class="card entry">${exerciseSummary(e, true)}
+          <div class="entry-actions"><button class="btn small" data-edit="${i}">Cambiar</button><button class="btn small danger" data-del="${i}">Quitar</button></div></div>`).join('')}
+      ${session.resources.map((r, i) => `<div class="card entry">${resourceSummary(r)}
+          <div class="entry-actions"><button class="btn small" data-redit="${i}">Cambiar</button><button class="btn small danger" data-rdel="${i}">Quitar</button></div></div>`).join('')}
+      ${hasContent() ? '' : '<p class="muted">¿Qué vais a trabajar? Añade un ejercicio o un recurso.</p>'}
       <div class="row">
-        <label class="field">Guía${personSelect('sGuide', guides, session.guide)}</label>
-        <label class="field">Figurante${personSelect('sFig', figs, session.figurant)}</label>
+        <button class="btn primary" id="addEx">＋ Ejercicio</button>
+        <button class="btn primary" id="addRes">＋ Recurso</button>
       </div>
-      ${settings.team.length ? '' : '<p class="muted" style="font-size:.85rem">Puedes añadir a tu equipo en Ajustes para elegirlos aquí.</p>'}
-
-      ${session.exercises.length ? `<h2>Ejercicios (${session.exercises.length})</h2>` : ''}
-      ${session.exercises.map((e, i) => i === editing ? exerciseForm(pending || e) : `
-        <div class="card">${exerciseSummary(e, true)}
-          <div class="row"><button class="btn small" data-edit="${i}">✏️ Cambiar</button><button class="btn small danger" data-del="${i}">Quitar</button></div>
-        </div>`).join('')}
-      ${editing === -1 ? exerciseForm(pending || {}) : ''}
-      ${session.resources.length ? `<h2>Recursos (${session.resources.length})</h2>` : ''}
-      ${session.resources.map((r, i) => i === resEditing ? resourceForm(r) : `
-        <div class="card">${resourceSummary(r)}
-          <div class="row"><button class="btn small" data-redit="${i}">✏️ Cambiar</button><button class="btn small danger" data-rdel="${i}">Quitar</button></div>
-        </div>`).join('')}
-      ${resEditing === -1 ? resourceForm({}) : ''}
-      ${editing === null && resEditing === null ? `
-        <div class="row">
-          <button class="btn primary" id="addEx">＋ ${session.exercises.length ? 'Otro ejercicio' : 'Ejercicio'}</button>
-          <button class="btn primary" id="addRes">＋ Recurso</button>
-        </div>
-        ${hasContent() ? `<a class="btn" href="#/perro/${dog.id}" id="finish">✔ Terminar sesión</a>` : ''}
-        ${!isNew ? '<button class="btn danger" id="delSession">Borrar sesión</button>' : ''}` : ''}
+      ${hasContent() ? `<a class="btn" href="#/perro/${dog.id}" id="finish">✔ Terminar sesión</a>` : ''}
+      ${!isNew ? '<button class="btn small danger" id="delSession">Borrar sesión</button>' : ''}
     `;
     bind();
   }
@@ -519,29 +524,29 @@ async function viewSession({ dogId, sessionId }) {
   function phaseInfo(e) {
     if (!e.phaseName) return '';
     const ph = phaseOf(e);
-    const crit = criteriaList(ph);
     return `<div class="phase-info">▶ ${esc(e.phaseName)}
-        ${ph?.goal ? `<div style="font-weight:400;margin-top:4px">${esc(ph.goal)}</div>` : ''}
+        ${ph?.goal ? `<div style="font-weight:400;margin-top:2px">${esc(ph.goal)}</div>` : ''}
         ${(ph?.requires || []).length ? requirementsHtml(dog, dogSessions, ph.requires) : ''}
-      </div>
-      ${crit.length ? `<div class="group"><div class="glabel">Criterios de la fase</div>${crit.map((c, i) =>
-        `<div class="crit"><div class="crit-name">${esc(c)}</div>${chips('crit:' + i, CHECKS, e.checks?.[c], 'checks')}</div>`).join('')}</div>` : ''}`;
+      </div>`;
   }
+  const criteriaHtml = (e) => criteriaList(phaseOf(e)).map((c, i) =>
+    `<div class="crit"><div class="crit-name">${esc(c)}</div>${chips('crit:' + i, CHECKS, e.checks?.[c], 'checks')}</div>`).join('');
 
   function resourceForm(r) {
     const list = dogResources(dog);
     const opts = r.name && !list.includes(r.name) ? [...list, r.name] : list;
-    return `<div class="card" id="resForm">
-      <div class="group"><div class="glabel">Recurso</div>${chips('res', opts, r.name)}</div>
-      <div class="group"><div class="glabel">Situación</div>${chips('ctx', settings.contexts.map((_, i) => ctxLabel(i)), r.ctx != null ? ctxLabel(r.ctx) : '', 'one-col')}</div>
-      <div id="resLevel"></div>
-      <div class="group"><div class="glabel">Intentos</div>
-        <div class="stepper"><button type="button" data-rstep="-1" data-for="tries">−</button><output id="tries">${r.tries ?? 5}</output><button type="button" data-rstep="1" data-for="tries">＋</button></div></div>
-      <div class="group"><div class="glabel">Aciertos</div>
-        <div class="stepper"><button type="button" data-rstep="-1" data-for="hits">−</button><output id="hits">${r.hits ?? 0}</output><button type="button" data-rstep="1" data-for="hits">＋</button></div></div>
-      <label class="field">Nota<input id="resNote" value="${esc(r.note)}" placeholder="Opcional" autocomplete="off"></label>
-      <button type="button" class="btn primary" id="saveRes">Guardar recurso</button>
-      <button type="button" class="btn small" id="cancelRes">Cancelar</button>
+    return `<div id="resForm" class="wizard">
+      <section class="step" data-types="all" data-title="Recurso">${chips('res', opts, r.name)}</section>
+      <section class="step" data-types="all" data-title="Situación y aciertos">
+        ${chips('ctx', settings.contexts.map((_, i) => ctxLabel(i)), r.ctx != null ? ctxLabel(r.ctx) : '', 'one-col')}
+        <div id="resLevel"></div>
+        <div class="row">
+          <div class="group"><div class="glabel">Intentos</div>${stepper('tries', r.tries ?? 5, 1, 'rstep')}</div>
+          <div class="group"><div class="glabel">Aciertos</div>${stepper('hits', r.hits ?? 0, 1, 'rstep')}</div>
+        </div>
+        <input id="resNote" value="${esc(r.note)}" placeholder="Nota (opcional)" autocomplete="off">
+      </section>
+      ${wizardNav('saveRes', 'cancelRes')}
     </div>`;
   }
 
@@ -555,12 +560,13 @@ async function viewSession({ dogId, sessionId }) {
         : '';
     };
     showLevel();
+    const wiz = setupWizard(f, () => 'all', r.name ? 1 : 0);
     f.onclick = (ev) => {
       const b = ev.target.closest('.chip');
       if (b) {
         const group = b.closest('.chips');
         $$('.chip', group).forEach((c) => c.setAttribute('aria-pressed', String(c === b)));
-        if (group.dataset.group === 'res') r.name = b.dataset.value;
+        if (group.dataset.group === 'res') { r.name = b.dataset.value; wiz.next(); }
         else r.ctx = parseInt(b.dataset.value, 10) - 1;
         showLevel();
         return;
@@ -584,7 +590,6 @@ async function viewSession({ dogId, sessionId }) {
       resEditing = null;
       toast('Recurso guardado');
       render();
-      window.scrollTo({ top: document.body.scrollHeight, behavior: 'smooth' });
     };
     $('#cancelRes').onclick = () => { resEditing = null; render(); };
   }
@@ -605,52 +610,65 @@ async function viewSession({ dogId, sessionId }) {
     const own = dog.exercises && dog.exercises.length && !showAll ? dog.exercises : allExercises();
     const exs = e.exercise && !own.includes(e.exercise) ? [...own, e.exercise] : own;
     const type = e.exercise ? exType(e.exercise) : '';
-    return `<div class="card" id="exForm" data-type="${type}" data-pmode="${esc(e.pmode || '')}">
-      <div class="group"><div class="glabel">Ejercicio</div>${exerciseChips('exercise', exs, e.exercise)}
+    return `<div id="exForm" class="wizard" data-type="${type}" data-pmode="${esc(e.pmode || '')}">
+      <section class="step" data-types="all" data-title="Ejercicio">
+        ${exerciseChips('exercise', exs, e.exercise)}
         ${own !== allExercises() ? '<button type="button" class="btn small" id="showAll">Ver todos los ejercicios</button>' : ''}
-        <div id="phaseInfo">${phaseInfo(e)}</div></div>
-      <p class="muted only-none">Elige el ejercicio para ver el resto.</p>
-      <div class="group only-mordida"><div class="glabel">Herramienta</div>${chips('tool', settings.tools, e.tool)}</div>
-      <div class="group only-mordida only-tecnico"><div class="glabel">Repeticiones</div>
-        <div class="stepper"><button type="button" data-step="-1" data-for="reps">−</button><output id="reps">${e.reps ?? 1}</output><button type="button" data-step="1" data-for="reps">＋</button></div>
-      </div>
-      <div class="group only-fisico"><div class="glabel">Tipo de trabajo</div>${chips('pmode', ['Continuo', 'Series'], e.pmode)}</div>
-      <div class="group only-fisico"><div class="glabel">Minutos en total</div>
-        <div class="stepper"><button type="button" data-step="-5" data-for="minutes">−</button><output id="minutes">${e.minutes ?? 10}</output><button type="button" data-step="5" data-for="minutes">＋</button></div>
-      </div>
-      ${[['hides', 'Escondites puestos', e.hides ?? 3], ['found', 'Encontrados', e.found ?? 0], ['falses', 'Falsos marcajes', e.falses ?? 0]].map(([k, l, v]) =>
-        `<div class="group only-deteccion"><div class="glabel">${l}</div>
-          <div class="stepper"><button type="button" data-step="-1" data-for="${k}">−</button><output id="${k}">${v}</output><button type="button" data-step="1" data-for="${k}">＋</button></div></div>`).join('')}
-      <div class="group only-deteccion"><div class="glabel">Marcaje</div>${chips('mark', settings.marks, e.mark)}</div>
-      <label class="field only-continuo">Velocidad media (km/h)${numInput('speed', e.speed, '12,5', true)}</label>
-      <div class="group only-series"><div class="glabel">Número de series</div>
-        <div class="stepper"><button type="button" data-step="-1" data-for="series">−</button><output id="series">${e.series ?? 4}</output><button type="button" data-step="1" data-for="series">＋</button></div>
-      </div>
-      <div class="row only-series">
-        <label class="field">Cada serie (segundos)${numInput('seriesTime', e.seriesTime, '30')}</label>
-        <label class="field">Descanso (segundos)${numInput('rest', e.rest, '60')}</label>
-      </div>
-      <div class="group only-fisico"><div class="glabel">Intensidad</div>${chips('intensity', settings.intensities, e.intensity)}</div>
-      <div class="row only-fisico">
-        <label class="field">FC media (ppm)${numInput('hrAvg', e.hrAvg, '140')}</label>
-        <label class="field">FC máxima (ppm)${numInput('hrMax', e.hrMax, '180')}</label>
-      </div>
-      <label class="field only-fisico">Actividad de Garmin, Strava o Polar<span class="hint">Pega aquí el enlace de la actividad (opcional).</span>
-        <input id="link" type="url" inputmode="url" value="${esc(e.link)}" placeholder="https://…" autocomplete="off"></label>
-      ${PILLARS.map(([k, l]) => `<div class="group only-mordida only-tecnico only-deteccion"><div class="glabel">${l}</div>${chips(k, ['1', '2', '3', '4', '5'], e[k] ? String(e[k]) : '', 'scores')}</div>`).join('')}
-      <div class="group only-mordida"><div class="glabel">Entrada</div>${chips('entry', settings.entries, e.entry)}</div>
-      <div class="group only-mordida"><div class="glabel">Mordida</div>${chips('bite', settings.bites, e.bite)}</div>
-      <div class="group only-mordida"><div class="glabel">Reacción al corte</div>${chips('cut', settings.cuts, e.cut)}</div>
-      <div class="group"><div class="glabel">Nota</div>
+      </section>
+
+      <section class="step" data-types="mordida tecnico deteccion fisico" data-title="Cómo se trabaja">
+        <div id="phaseInfo">${phaseInfo(e)}</div>
+        <div class="group only-mordida"><div class="glabel">Herramienta</div>${chips('tool', settings.tools, e.tool)}</div>
+        <div class="group only-mordida only-tecnico"><div class="glabel">Repeticiones</div>${stepper('reps', e.reps ?? 1, 1)}</div>
+        <div class="row only-deteccion">
+          ${[['hides', 'Escondites', e.hides ?? 3], ['found', 'Encontrados', e.found ?? 0]].map(([k, l, v]) =>
+            `<div class="group"><div class="glabel">${l}</div>${stepper(k, v, 1)}</div>`).join('')}
+        </div>
+        <div class="group only-deteccion"><div class="glabel">Falsos marcajes</div>${stepper('falses', e.falses ?? 0, 1)}</div>
+        <div class="group only-fisico"><div class="glabel">Tipo de trabajo</div>${chips('pmode', ['Continuo', 'Series'], e.pmode)}</div>
+        <div class="group only-fisico"><div class="glabel">Minutos en total</div>${stepper('minutes', e.minutes ?? 10, 5)}</div>
+        <label class="field only-continuo">Velocidad media (km/h)${numInput('speed', e.speed, '12,5', true)}</label>
+        <div class="group only-series"><div class="glabel">Número de series</div>${stepper('series', e.series ?? 4, 1)}</div>
+        <div class="row only-series">
+          <label class="field">Cada serie (seg.)${numInput('seriesTime', e.seriesTime, '30')}</label>
+          <label class="field">Descanso (seg.)${numInput('rest', e.rest, '60')}</label>
+        </div>
+      </section>
+
+      <section class="step" data-types="mordida tecnico deteccion" data-title="Intención, precisión y control">
+        <div class="group only-deteccion"><div class="glabel">Marcaje</div>${chips('mark', settings.marks, e.mark)}</div>
+        ${PILLARS.map(([k, l]) => `<div class="group"><div class="glabel">${l}</div>${chips(k, ['1', '2', '3', '4', '5'], e[k] ? String(e[k]) : '', 'scores')}</div>`).join('')}
+      </section>
+
+      <section class="step" data-types="fisico" data-title="Intensidad y pulsómetro">
+        <div class="group"><div class="glabel">Intensidad</div>${chips('intensity', settings.intensities, e.intensity)}</div>
+        <div class="row">
+          <label class="field">FC media (ppm)${numInput('hrAvg', e.hrAvg, '140')}</label>
+          <label class="field">FC máxima (ppm)${numInput('hrMax', e.hrMax, '180')}</label>
+        </div>
+        <label class="field">Enlace de Garmin, Strava o Polar
+          <input id="link" type="url" inputmode="url" value="${esc(e.link)}" placeholder="https://… (opcional)" autocomplete="off"></label>
+      </section>
+
+      <section class="step" data-types="mordida" data-title="Entrada, mordida y corte">
+        <div class="group"><div class="glabel">Entrada</div>${chips('entry', settings.entries, e.entry)}</div>
+        <div class="group"><div class="glabel">Mordida</div>${chips('bite', settings.bites, e.bite)}</div>
+        <div class="group"><div class="glabel">Reacción al corte</div>${chips('cut', settings.cuts, e.cut)}</div>
+      </section>
+
+      <section class="step" id="stepCrit" data-types="mordida tecnico deteccion fisico" data-title="Criterios de la fase">
+        <div id="critBox">${criteriaHtml(e)}</div>
+      </section>
+
+      <section class="step" data-types="all" data-title="Nota">
         <textarea id="exNote" placeholder="Escribe o usa los botones de voz">${esc(e.note)}</textarea>
         <div class="row">
           <button type="button" class="btn small" id="dictate">🎙 Dictar</button>
           <button type="button" class="btn small" id="record">⏺ Grabar audio</button>
         </div>
         <div id="audioBox">${e.audio ? audioHtml(e.audio) : ''}</div>
-      </div>
-      <button type="button" class="btn primary" id="saveEx">Guardar ejercicio</button>
-      <button type="button" class="btn small" id="cancelEx">Cancelar</button>
+      </section>
+      ${wizardNav('saveEx', 'cancelEx')}
     </div>`;
   }
 
@@ -658,18 +676,20 @@ async function viewSession({ dogId, sessionId }) {
     <button type="button" class="btn small danger" id="delAudio">Borrar audio</button>`;
 
   function bind() {
-    $('#sDate').onchange = (ev) => { session.date = ev.target.value || today(); if (hasContent()) persist(); };
-    for (const [id, key] of [['sGuide', 'guide'], ['sFig', 'figurant']]) {
-      $('#' + id).onchange = (ev) => { session[key] = ev.target.value.trim(); if (hasContent()) persist(); };
+    if ($('#sDate')) {
+      $('#sDate').onchange = (ev) => { session.date = ev.target.value || today(); if (hasContent()) persist(); };
+      for (const [id, key] of [['sGuide', 'guide'], ['sFig', 'figurant']]) {
+        $('#' + id).onchange = (ev) => { session[key] = ev.target.value.trim(); if (hasContent()) persist(); };
+      }
     }
-    $$('[data-edit]').forEach((b) => (b.onclick = () => { editing = +b.dataset.edit; render(); scrollToForm(); }));
+    $$('[data-edit]').forEach((b) => (b.onclick = () => { editing = +b.dataset.edit; render(); }));
     $$('[data-del]').forEach((b) => (b.onclick = async () => {
       if (!await ask('¿Quitar este ejercicio?')) return;
       session.exercises.splice(+b.dataset.del, 1);
       if (hasContent()) await persist(); else await DB.del('sessions', session.id);
       render();
     }));
-    $$('[data-redit]').forEach((b) => (b.onclick = () => { resEditing = +b.dataset.redit; render(); $('#resForm').scrollIntoView({ behavior: 'smooth' }); }));
+    $$('[data-redit]').forEach((b) => (b.onclick = () => { resEditing = +b.dataset.redit; render(); }));
     $$('[data-rdel]').forEach((b) => (b.onclick = async () => {
       if (!await ask('¿Quitar este recurso?')) return;
       session.resources.splice(+b.dataset.rdel, 1);
@@ -677,9 +697,9 @@ async function viewSession({ dogId, sessionId }) {
       render();
     }));
     const add = $('#addEx');
-    if (add) add.onclick = () => { editing = -1; render(); scrollToForm(); };
+    if (add) add.onclick = () => { editing = -1; render(); };
     const addR = $('#addRes');
-    if (addR) addR.onclick = () => { resEditing = -1; render(); $('#resForm').scrollIntoView({ behavior: 'smooth', block: 'start' }); };
+    if (addR) addR.onclick = () => { resEditing = -1; render(); };
     bindResForm();
     const delS = $('#delSession');
     if (delS) delS.onclick = async () => {
@@ -697,6 +717,7 @@ async function viewSession({ dogId, sessionId }) {
     const draft = pending || { ...base };
     pending = draft;
 
+    const wiz = setupWizard(form, () => form.dataset.type, draft.exercise ? 1 : 0);
     // Un solo manejador para todo el formulario: los criterios cambian al elegir otro ejercicio.
     form.onclick = (ev) => {
         const b = ev.target.closest('.chip');
@@ -722,7 +743,9 @@ async function viewSession({ dogId, sessionId }) {
           draft.phaseName = ph ? `Fase ${getPlan(dog, draft.exercise).current + 1}${ph.name ? ': ' + ph.name : ''}` : '';
           draft.checks = {};
           $('#phaseInfo').innerHTML = phaseInfo(draft);
+          $('#critBox').innerHTML = criteriaHtml(draft);
           form.dataset.type = on ? exType(draft.exercise) : '';
+          if (on) wiz.next(); else wiz.refresh();
         }
         if (key === 'pmode') {
           form.dataset.pmode = draft.pmode || '';
@@ -766,7 +789,6 @@ async function viewSession({ dogId, sessionId }) {
       showAll = false;
       toast('Ejercicio guardado');
       render();
-      window.scrollTo({ top: document.body.scrollHeight, behavior: 'smooth' });
     };
     $('#cancelEx').onclick = () => { stopRecording(); editing = null; pending = null; showAll = false; render(); };
   }
@@ -785,12 +807,47 @@ async function viewSession({ dogId, sessionId }) {
     }
   }
 
-  function scrollToForm() {
-    const f = $('#exForm');
-    if (f) f.scrollIntoView({ behavior: 'smooth', block: 'start' });
-  }
-
   render();
+}
+
+// ---------- formularios por pasos ----------
+const stepper = (id, value, step, attr = 'step') =>
+  `<div class="stepper"><button type="button" data-${attr}="-${step}" data-for="${id}">−</button><output id="${id}">${value}</output><button type="button" data-${attr}="${step}" data-for="${id}">＋</button></div>`;
+
+const wizardNav = (saveId, cancelId) => `<div class="wiz-nav">
+    <button type="button" class="btn small" id="${cancelId}">✕</button>
+    <button type="button" class="btn small" data-wiz="-1">‹ Atrás</button>
+    <button type="button" class="btn small" data-wiz="1">Siguiente ›</button>
+    <button type="button" class="btn primary small" id="${saveId}">✔ Guardar</button>
+  </div>`;
+
+// Enseña un paso cada vez. typeOf() dice qué pasos tocan según el tipo de ejercicio.
+function setupWizard(root, typeOf, startAt = 0) {
+  const steps = $$('.step', root);
+  let cur = 0;
+  const visible = () => steps.filter((s) => {
+    const t = typeOf();
+    const ok = s.dataset.types === 'all' || (t && s.dataset.types.split(' ').includes(t));
+    return ok && (s.id !== 'stepCrit' || $('#critBox', s).innerHTML.trim());
+  });
+  function show() {
+    const vis = visible();
+    cur = Math.min(cur, vis.length - 1);
+    steps.forEach((s) => (s.hidden = s !== vis[cur]));
+    let head = $('.wiz-head', root);
+    if (!head) { head = document.createElement('div'); head.className = 'wiz-head'; root.prepend(head); }
+    const name = root.querySelector('[data-group="exercise"] [aria-pressed="true"], [data-group="res"] [aria-pressed="true"]')?.dataset.value;
+    head.innerHTML = `<div class="wiz-title">${esc(vis[cur].dataset.title)}${name && cur ? ` · <span class="muted">${esc(name)}</span>` : ''}</div>
+      <div class="dots">${vis.map((_, i) => `<span class="${i === cur ? 'on' : ''}"></span>`).join('')}</div>`;
+    $('[data-wiz="-1"]', root).disabled = cur === 0;
+    $('[data-wiz="1"]', root).hidden = cur >= vis.length - 1;
+    window.scrollTo(0, 0);
+  }
+  $$('[data-wiz]', root).forEach((b) => (b.onclick = () => { cur += +b.dataset.wiz; show(); }));
+  const api = { next() { cur++; show(); }, refresh: show };
+  cur = Math.min(startAt, visible().length - 1);
+  show();
+  return api;
 }
 
 // ---------- voz ----------
@@ -905,7 +962,7 @@ async function viewSettings() {
       <textarea data-list="contexts" rows="5">${esc(settings.contexts.join('\n'))}</textarea></label>
     ${listEditor('bites', 'Opciones de mordida')}
     ${listEditor('levels', 'Niveles del perro')}
-    <p class="muted" style="font-size:.8rem;margin-top:30px">Impacto K9 · Pista — versión 6</p>
+    <p class="muted" style="font-size:.8rem;margin-top:30px">Impacto K9 · Pista — versión 7</p>
   `;
 
   $('#doBackup').onclick = doBackup;
@@ -1051,6 +1108,7 @@ async function loadSettings() {
 
 async function route() {
   stopRecording();
+  document.body.classList.remove('focus');
   const parts = currentPath().replace(/^#\/?/, '').split('/').filter(Boolean);
   const tab = parts[0] === 'registrar' || parts[0] === 'sesion' ? 'log' : parts[0] === 'ajustes' ? 'settings' : 'home';
   $$('#tabs a').forEach((a) => a.classList.toggle('active', a.dataset.tab === tab));
