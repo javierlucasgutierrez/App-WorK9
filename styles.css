@@ -158,3 +158,19 @@ input:focus, textarea:focus, select:focus { outline: 4px solid var(--accent); ou
 #toast.show { opacity: 1; transform: none; }
 
 details.card summary { font-weight: 800; cursor: pointer; min-height: 40px; }
+
+/* Semáforo de fases */
+.dot { display: inline-block; width: 34px; height: 34px; flex: none; border-radius: 50%; border: 3px solid var(--line); }
+.dot.green { background: #1bb34a; }
+.dot.yellow { background: #f5c400; }
+.dot.red { background: #e01e1e; }
+.dot.grey { background: #9a9a9a; }
+.plan-card { display: flex; align-items: center; gap: 14px; }
+.sem { display: flex; gap: 14px; align-items: flex-start; padding: 14px; margin: 4px 0 14px; border-radius: 16px; border: 4px solid var(--line); background: var(--card); }
+.sem.green { border-color: #1bb34a; }
+.sem.yellow { border-color: #f5c400; }
+.sem.red { border-color: #e01e1e; }
+.phase.done { opacity: .65; }
+.phase.current { border-width: 4px; border-color: var(--accent); }
+.phase-info { margin-top: 10px; padding: 10px 12px; border-radius: 12px; border: 2px dashed var(--accent); font-weight: 800; }
+.btn[disabled] { opacity: .35; }

@@ -148,6 +148,8 @@ async function viewDog(id) {
     </div>
     <a class="btn small" href="#/perro/${dog.id}/editar">✏️ Editar ficha</a>
 
+    ${plansSection(dog, sessions)}
+
     <h2>Sesiones (${sessions.length})</h2>
     ${sessions.length ? sessions.map(sessionCard).join('') : '<p class="muted">Aún no hay sesiones.</p>'}
   `;
@@ -171,6 +173,7 @@ function exerciseSummary(e) {
     .join('');
   return `<div class="ex-line">
     <div><b>${esc(e.exercise)}</b> <span class="muted">${esc([e.tool, e.reps ? e.reps + ' rep.' : ''].filter(Boolean).join(' · '))}</span></div>
+    ${e.phaseName ? `<div class="muted" style="font-size:.85rem">${esc(e.phaseName)}</div>` : ''}
     <div class="pillars">${PILLARS.map(([k, l]) => `<div class="pill">${l}<b>${e[k] || '–'}</b></div>`).join('')}</div>
     ${tags ? `<div style="margin-top:6px">${tags}</div>` : ''}
     ${e.note ? `<div class="muted" style="margin-top:4px;white-space:pre-wrap">📝 ${esc(e.note)}</div>` : ''}
@@ -345,10 +348,12 @@ async function viewSession({ dogId, sessionId }) {
     return `<select id="${id}"><option value="">—</option>${all.map((n) => `<option ${n === current ? 'selected' : ''}>${esc(n)}</option>`).join('')}</select>`;
   }
 
+  const phaseInfo = (e) => (e.phaseName ? `<div class="phase-info">▶ ${esc(e.phaseName)}</div>` : '');
+
   function exerciseForm(e) {
     const exs = e.exercise && !settings.exercises.includes(e.exercise) ? [...settings.exercises, e.exercise] : settings.exercises;
     return `<div class="card" id="exForm">
-      <div class="group"><div class="glabel">Ejercicio</div>${chips('exercise', exs, e.exercise)}</div>
+      <div class="group"><div class="glabel">Ejercicio</div>${chips('exercise', exs, e.exercise)}<div id="phaseInfo">${phaseInfo(e)}</div></div>
       <div class="group"><div class="glabel">Herramienta</div>${chips('tool', settings.tools, e.tool)}</div>
       <div class="group"><div class="glabel">Repeticiones</div>
         <div class="stepper"><button type="button" data-step="-1">−</button><output id="reps">${e.reps ?? 1}</output><button type="button" data-step="1">＋</button></div>
@@ -411,7 +416,13 @@ async function viewSession({ dogId, sessionId }) {
         $$('.chip', group).forEach((c) => c.setAttribute('aria-pressed', 'false'));
         b.setAttribute('aria-pressed', String(on));
         draft[key] = on ? (group.classList.contains('scores') ? +b.dataset.value : b.dataset.value) : '';
-        if (key === 'exercise' && on && editing === -1) prefillTool(draft, form);
+        if (key === 'exercise') {
+          if (on && editing === -1) prefillTool(draft, form);
+          const ph = on ? currentPhase(getPlan(dog, draft.exercise)) : null;
+          draft.phaseId = ph?.id || '';
+          draft.phaseName = ph ? `Fase ${getPlan(dog, draft.exercise).current + 1}${ph.name ? ': ' + ph.name : ''}` : '';
+          $('#phaseInfo').innerHTML = phaseInfo(draft);
+        }
       };
     });
     $$('[data-step]', form).forEach((b) => (b.onclick = () => {
@@ -564,7 +575,7 @@ async function viewSettings() {
     ${listEditor('exercises', 'Ejercicios')}
     ${listEditor('bites', 'Opciones de mordida')}
     ${listEditor('levels', 'Niveles del perro')}
-    <p class="muted" style="font-size:.8rem;margin-top:30px">Impacto K9 · Pista — versión 1 (etapa 1)</p>
+    <p class="muted" style="font-size:.8rem;margin-top:30px">Impacto K9 · Pista — versión 2 (etapas 1 y 2)</p>
   `;
 
   $('#doBackup').onclick = doBackup;
@@ -692,6 +703,7 @@ async function route() {
   try {
     if (!parts.length) await viewHome();
     else if (parts[0] === 'perro' && parts[2] === 'editar') await viewDogEdit(parts[1]);
+    else if (parts[0] === 'perro' && parts[2] === 'fases') await viewPlan(parts[1], parts[3]);
     else if (parts[0] === 'perro') await viewDog(parts[1]);
     else if (parts[0] === 'registrar' && parts[1]) await viewSession({ dogId: parts[1] });
     else if (parts[0] === 'registrar') await viewPickDog();
